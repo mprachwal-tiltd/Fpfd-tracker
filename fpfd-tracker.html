@@ -1,0 +1,2018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FPFD Response Tracker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+  :root {
+    --red:#D42B2B; --amber:#F5A623; --green:#27AE60; --blue:#4A9EFF;
+    --gray:#888; --bg:#0D0D0D; --surface:#161616; --surface2:#1E1E1E;
+    --border:#2A2A2A; --text:#E8E8E8; --muted:#666;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;min-height:100vh;padding-bottom:60px;}
+
+  /* HEADER */
+  .header{background:var(--surface);border-bottom:3px solid var(--red);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+  .header-left{display:flex;align-items:center;gap:10px;}
+  .badge{background:var(--red);color:white;font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:1px;padding:3px 8px;border-radius:3px;}
+  .title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;}
+  .month-selector{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 12px;}
+  .month-selector select{background:transparent;border:none;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:12px;cursor:pointer;outline:none;}
+  .month-selector select option{background:#1E1E1E;}
+
+  /* STATS */
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-bottom:1px solid var(--border);}
+  .stat-card{background:var(--surface);padding:16px 20px;position:relative;}
+  .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+  .stat-card.s1::before{background:var(--amber);}
+  .stat-card.s2::before{background:var(--blue);}
+  .stat-card.s3::before{background:var(--green);}
+  .stat-card.s4::before{background:var(--red);}
+  .stat-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+  .stat-value{font-family:'Bebas Neue',sans-serif;font-size:42px;line-height:1;}
+  .stat-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:4px;}
+  .good{color:var(--green);} .warn{color:var(--amber);} .bad{color:var(--red);}
+
+  /* PROGRESS */
+  .progress-wrap{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:14px;}
+  .progress-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);width:130px;}
+  .progress-track{flex:1;height:7px;background:var(--surface2);border-radius:4px;overflow:hidden;position:relative;}
+  .progress-fill{height:100%;border-radius:4px;transition:width 0.5s ease;}
+  .threshold{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--amber);left:25%;}
+  .progress-pct{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;width:40px;text-align:right;}
+
+  /* LAYOUT */
+  .main{display:grid;grid-template-columns:370px 1fr;}
+  .form-panel{background:var(--surface);border-right:1px solid var(--border);padding:18px;position:sticky;top:113px;height:calc(100vh - 113px);overflow-y:auto;}
+  .panel-title{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:2px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+
+  /* FORM */
+  .form-group{margin-bottom:12px;}
+  .form-label{display:block;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+  .form-input,.form-select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:8px 11px;outline:none;transition:border-color 0.2s;}
+  .form-input:focus,.form-select:focus{border-color:var(--red);}
+  .form-select option{background:#1E1E1E;}
+
+  /* LOCATION TOGGLES */
+  .toggle-row{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px;}
+  .toggle-big{padding:10px 8px;border-radius:6px;border:1.5px solid var(--border);text-align:center;cursor:pointer;transition:all 0.15s;background:var(--surface2);}
+  .toggle-big .t-icon{font-size:20px;margin-bottom:3px;}
+  .toggle-big .t-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
+  .toggle-big.sel-intown{border-color:var(--blue);background:rgba(74,158,255,0.1);}
+  .toggle-big.sel-intown .t-label{color:var(--blue);}
+  .toggle-big.sel-out{border-color:var(--gray);background:rgba(136,136,136,0.1);}
+  .toggle-big.sel-out .t-label{color:var(--gray);}
+
+  /* RADIO BTNS */
+  .radio-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+  .rbtn{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:7px 8px;cursor:pointer;text-align:center;font-size:11px;transition:all 0.15s;user-select:none;}
+  .rbtn:hover{border-color:var(--muted);}
+  .rbtn.sel-red{border-color:var(--red);background:rgba(212,43,43,0.12);color:white;}
+  .rbtn.sel-green{border-color:var(--green);background:rgba(39,174,96,0.12);color:#7EE8A2;}
+  .rbtn.sel-amber{border-color:var(--amber);background:rgba(245,166,35,0.12);color:var(--amber);}
+
+  /* CALL TYPE TAGS */
+  .tags-wrap{display:flex;flex-wrap:wrap;gap:4px;}
+  .ctag{padding:4px 8px;border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:9px;cursor:pointer;border:1px solid transparent;transition:all 0.15s;white-space:nowrap;}
+  .ctag:hover{filter:brightness(1.3);}
+  .ctag.sel{border-color:white!important;}
+  .t-fire{background:rgba(212,43,43,0.18);color:#FF8080;}
+  .t-ems{background:rgba(74,158,255,0.18);color:#80C4FF;}
+  .t-mva{background:rgba(245,166,35,0.18);color:var(--amber);}
+  .t-info{background:rgba(100,220,100,0.15);color:#80DD80;}
+  .t-misc{background:rgba(136,136,136,0.18);color:#AAA;}
+
+  /* SMS BOX */
+  .sms-box{background:var(--surface2);border:1px dashed #333;border-radius:6px;padding:12px;margin-bottom:12px;}
+  .sms-box-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--amber);margin-bottom:7px;}
+  .sms-textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:10px;padding:7px 9px;outline:none;resize:vertical;min-height:65px;}
+  .parse-btn{margin-top:6px;background:rgba(245,166,35,0.12);border:1px solid var(--amber);color:var(--amber);padding:5px 12px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;transition:all 0.15s;}
+  .parse-btn:hover{background:rgba(245,166,35,0.22);}
+  .parse-result{margin-top:6px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--green);display:none;padding:4px 6px;background:rgba(39,174,96,0.1);border-radius:3px;}
+
+  /* ERROR */
+  .error-msg{background:rgba(212,43,43,0.15);border:1px solid var(--red);border-radius:5px;padding:8px 12px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#FF8080;margin-bottom:10px;display:none;}
+
+  .btn-submit{width:100%;background:var(--red);color:white;border:none;border-radius:6px;padding:12px;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;cursor:pointer;margin-top:6px;transition:background 0.2s,opacity 0.2s;}
+  .btn-submit:hover{opacity:0.85;}
+
+  /* RIGHT PANEL */
+  .list-panel{padding:20px;overflow-y:auto;}
+  .tab-nav{display:flex;border-bottom:1px solid var(--border);margin-bottom:18px;}
+  .tab{padding:9px 16px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.15s;}
+  .tab.active{color:var(--text);border-bottom-color:var(--red);}
+  .tab-content{display:none;}
+  .tab-content.active{display:block;}
+
+  /* CALL LOG */
+  .log-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .log-title{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:2px;}
+  .export-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:5px;font-family:'IBM Plex Mono',monospace;font-size:10px;cursor:pointer;letter-spacing:1px;transition:border-color 0.2s;}
+  .export-btn:hover{border-color:var(--amber);color:var(--amber);}
+  .legend{display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap;}
+  .leg-item{display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);}
+  .leg-dot{width:8px;height:8px;border-radius:50%;}
+  .tbl-head{display:grid;grid-template-columns:72px 1fr 90px 80px 30px;gap:10px;padding:4px 14px 6px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);margin-bottom:6px;}
+
+  /* CALL ROWS */
+  .call-row{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--border);border-radius:6px;padding:11px 14px;margin-bottom:5px;display:grid;grid-template-columns:72px 1fr 90px 80px 30px;align-items:center;gap:10px;}
+  .call-row:hover{border-color:#444;border-left-color:inherit;}
+  .call-row.r-responded{border-left-color:var(--green);}
+  .call-row.r-missed{border-left-color:var(--amber);}
+  .call-row.r-out{border-left-color:#333;}
+  .call-row.r-notrequired{border-left-color:var(--blue);}
+  .cr-date{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);line-height:1.5;}
+  .cr-main{min-width:0;}
+  .cr-type{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cr-dispatch{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cr-location{font-family:'IBM Plex Mono',monospace;font-size:10px;text-align:center;}
+  .loc-in{color:var(--blue);} .loc-out{color:var(--muted);}
+  .cr-status{font-family:'IBM Plex Mono',monospace;font-size:10px;text-align:center;}
+  .s-yes{color:var(--green);} .s-no{color:var(--amber);} .s-out{color:var(--muted);} .s-nr{color:var(--blue);}
+  .del-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 4px;border-radius:3px;transition:color 0.15s;}
+  .del-btn:hover{color:var(--red);}
+
+  /* REPORT */
+  .report-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px;margin-bottom:18px;}
+  .report-title{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;margin-bottom:14px;color:var(--amber);}
+  .report-pre{font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.8;color:#CCC;white-space:pre-wrap;background:var(--surface2);border-radius:5px;padding:14px;border:1px solid var(--border);}
+
+  /* 10 CODES TABLE */
+  .codes-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .codes-section{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:14px;}
+  .codes-section-title{font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;color:var(--amber);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+  .code-row{display:flex;gap:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:1.5;}
+  .code-row:last-child{border-bottom:none;}
+  .code-num{color:var(--amber);font-weight:600;min-width:40px;flex-shrink:0;}
+  .code-desc{color:#CCC;}
+  .code-row.highlight{background:rgba(212,43,43,0.08);margin:0 -4px;padding:3px 4px;border-radius:3px;}
+  .code-row.highlight .code-desc{color:white;}
+
+  .empty-state{text-align:center;padding:40px 20px;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:12px;}
+  .empty-icon{font-size:30px;margin-bottom:10px;}
+
+  /* ANALYTICS */
+  .analytics-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .an-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;}
+  .an-card.full-width{grid-column:1/-1;}
+  .an-title{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;color:var(--amber);margin-bottom:12px;}
+
+  /* STREAK */
+  .streak-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .streak-box{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:14px;text-align:center;}
+  .streak-num{font-family:'Bebas Neue',sans-serif;font-size:36px;line-height:1;}
+  .streak-lbl{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-top:4px;}
+
+  /* TREND CHART */
+  .trend-wrap{width:100%;overflow-x:auto;}
+  .trend-wrap canvas{width:100%;min-width:400px;}
+  .trend-legend{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:8px;}
+
+  /* HEATMAP */
+  .heatmap-labels-top{display:grid;grid-template-columns:60px repeat(24,1fr);font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);margin-bottom:2px;text-align:center;}
+  .heatmap-grid{display:flex;flex-direction:column;gap:2px;}
+  .heatmap-row{display:grid;grid-template-columns:60px repeat(24,1fr);gap:2px;align-items:center;}
+  .hm-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);text-align:right;padding-right:6px;}
+  .hm-cell{height:18px;border-radius:2px;background:var(--surface2);cursor:default;position:relative;}
+  .hm-cell:hover .hm-tip{display:block;}
+  .hm-tip{display:none;position:absolute;bottom:22px;left:50%;transform:translateX(-50%);background:#000;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-family:'IBM Plex Mono',monospace;font-size:9px;white-space:nowrap;z-index:10;color:var(--text);}
+  .heatmap-legend{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:8px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+  .heat-swatch{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:middle;}
+
+  /* BAR CHARTS */
+  .bar-chart{display:flex;flex-direction:column;gap:5px;}
+  .bar-row{display:grid;grid-template-columns:36px 1fr 36px;align-items:center;gap:8px;}
+  .bar-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);text-align:right;}
+  .bar-track{background:var(--surface2);border-radius:3px;height:14px;overflow:hidden;position:relative;}
+  .bar-fill{height:100%;border-radius:3px;transition:width 0.4s ease;}
+  .bar-val{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);}
+
+  /* GROUPED BUTTON BLOCK */
+  .btn-group-block{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+  .btn-group-row{margin-bottom:4px;}
+  .btn-group-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+  .btn-group-divider{height:1px;background:var(--border);margin:10px 0;}
+
+  /* OVERNIGHT */
+  .ov-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}
+  .ov-form{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;}
+  .ov-form-title{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;color:var(--amber);margin-bottom:12px;}
+  .ov-form-row{display:flex;gap:12px;}
+  .ov-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+  .ov-stat{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px;text-align:center;}
+  .ov-stat-num{font-family:'Bebas Neue',sans-serif;font-size:30px;line-height:1;color:var(--blue);}
+  .ov-stat-lbl{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-top:3px;}
+  .ov-row{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:6px;padding:10px 14px;margin-bottom:5px;display:grid;grid-template-columns:90px 80px 80px 1fr 80px 30px;align-items:center;gap:10px;font-family:'IBM Plex Mono',monospace;font-size:11px;}
+  .ov-row:hover{border-color:#444;border-left-color:var(--blue);}
+
+  /* calendar strip for overnights */
+  .ov-calendar{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px;}
+  .ov-cal-day{width:28px;height:28px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);cursor:default;}
+  .ov-cal-day.covered{background:rgba(74,158,255,0.2);border-color:var(--blue);color:var(--blue);}
+  .ov-cal-day.had-call{background:rgba(39,174,96,0.2);border-color:var(--green);color:var(--green);}
+
+  @media(max-width:880px){
+    .stats-grid{grid-template-columns:repeat(2,1fr);}
+    .main{grid-template-columns:1fr;}
+    .form-panel{position:static;height:auto;}
+    .call-row,.tbl-head{grid-template-columns:60px 1fr 70px 26px;}
+    .cr-location,.th-loc{display:none;}
+    .codes-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <span class="badge">🚒 FPFD</span>
+    <span class="title">RESPONSE TRACKER</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span id="syncStatus" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);">💾 Local only</span>
+    <div class="month-selector">
+      <select id="monthSelect" onchange="filterByMonth()">
+        <option value="all">ALL TIME</option>
+      </select>
+    </div>
+    <button onclick="toggleSettings()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:14px;" title="Settings">⚙</button>
+  </div>
+</div>
+
+<!-- SETTINGS PANEL -->
+<div id="settingsPanel" style="display:none;background:var(--surface);border-bottom:2px solid var(--amber);padding:14px 20px;">
+  <div style="max-width:700px;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--amber);margin-bottom:10px;">⚙ GOOGLE SHEETS SYNC</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:8px;">Paste your Apps Script Web App URL below to enable cloud sync. All calls and overnights will be saved to your Google Sheet automatically.</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input type="url" id="sheetUrlInput" class="form-input" style="flex:1;font-size:11px;" placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec">
+      <button onclick="saveSheetURL()" style="background:var(--green);border:none;color:white;padding:8px 16px;border-radius:5px;font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer;white-space:nowrap;">SAVE URL</button>
+      <button onclick="loadFromSheet()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:5px;font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer;white-space:nowrap;">↻ PULL FROM SHEET</button>
+    </div>
+    <div id="sheetUrlStatus" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:6px;"></div>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card s1">
+    <div class="stat-label">Total Calls</div>
+    <div class="stat-value" id="sTotal">0</div>
+    <div class="stat-sub" id="sActiveSub">0 required response</div>
+  </div>
+  <div class="stat-card s2">
+    <div class="stat-label">In Town</div>
+    <div class="stat-value" id="sInTown">0</div>
+    <div class="stat-sub" id="sInTownPct">— of total</div>
+  </div>
+  <div class="stat-card s3">
+    <div class="stat-label">Responded</div>
+    <div class="stat-value" id="sResponded">0</div>
+    <div class="stat-sub" id="sRespondedSub">of required calls</div>
+  </div>
+  <div class="stat-card s4">
+    <div class="stat-label">In-Town Rate</div>
+    <div class="stat-value" id="sRate">—</div>
+    <div class="stat-sub">req: ≥25%</div>
+  </div>
+</div>
+
+<div>
+  <div class="progress-wrap">
+    <div class="progress-label">OVERALL RATE</div>
+    <div class="progress-track">
+      <div class="progress-fill" id="barOverall" style="width:0%;background:var(--red)"></div>
+      <div class="threshold"></div>
+    </div>
+    <div class="progress-pct" id="barOverallPct" style="color:var(--red)">0%</div>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-label">WHEN IN TOWN</div>
+    <div class="progress-track">
+      <div class="progress-fill" id="barInTown" style="width:0%;background:var(--green)"></div>
+      <div class="threshold"></div>
+    </div>
+    <div class="progress-pct" id="barInTownPct" style="color:var(--green)">0%</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- FORM PANEL -->
+  <div class="form-panel">
+    <div class="panel-title">📟 LOG A CALL</div>
+
+    <!-- 1. PASTE SMS -->
+    <div class="sms-box">
+      <div class="sms-box-label">⚡ Paste Dispatch Text / Signal Code</div>
+      <textarea class="sms-textarea" id="smsRaw" placeholder="Paste the full dispatch SMS here..."></textarea>
+      <button class="parse-btn" onclick="parseSMS()">AUTO-FILL FROM TEXT ↓</button>
+      <div class="parse-result" id="parseResult"></div>
+    </div>
+
+    <!-- 2. CALL TYPE — directly under SMS box -->
+    <div class="form-group">
+      <label class="form-label">Call Type</label>
+      <div class="tags-wrap">
+        <!-- YOUR UNIT — FIRE -->
+        <div class="ctag t-fire" data-val="Working Fire"         onclick="pickTag(this)">🔥 Working Fire</div>
+        <div class="ctag t-fire" data-val="Automatic Alarm"      onclick="pickTag(this)">🔔 Automatic Alarm</div>
+        <div class="ctag t-fire" data-val="Structure Fire"       onclick="pickTag(this)">🏠 Structure Fire</div>
+        <div class="ctag t-fire" data-val="Vehicle Fire"         onclick="pickTag(this)">🚗 Vehicle Fire</div>
+        <div class="ctag t-fire" data-val="Brush / Grass Fire"   onclick="pickTag(this)">🌿 Brush Fire</div>
+        <div class="ctag t-fire" data-val="Natural Gas — Inside" onclick="pickTag(this)">💨 Gas — Inside</div>
+        <div class="ctag t-fire" data-val="Natural Gas — Outside" onclick="pickTag(this)">💨 Gas — Outside</div>
+        <div class="ctag t-fire" data-val="Wires Down"           onclick="pickTag(this)">⚡ Wires Down</div>
+        <!-- YOUR UNIT — EMS/RESCUE -->
+        <div class="ctag t-ems"  data-val="Ambulance"            onclick="pickTag(this)">🚑 Ambulance</div>
+        <div class="ctag t-ems"  data-val="EMS — Cardiac"        onclick="pickTag(this)">❤️ Cardiac</div>
+        <div class="ctag t-ems"  data-val="EMS — Trauma"         onclick="pickTag(this)">🩺 Trauma</div>
+        <div class="ctag t-ems"  data-val="EMS — Fall"           onclick="pickTag(this)">🧍 Fall</div>
+        <div class="ctag t-ems"  data-val="EMS — Respiratory"    onclick="pickTag(this)">🫁 Respiratory</div>
+        <div class="ctag t-ems"  data-val="EMS — General"        onclick="pickTag(this)">🚑 EMS General</div>
+        <div class="ctag t-ems"  data-val="Rescue — Entrapment"  onclick="pickTag(this)">🔧 Entrapment</div>
+        <div class="ctag t-mva"  data-val="MVA"                  onclick="pickTag(this)">💥 MVA</div>
+        <div class="ctag t-mva"  data-val="Hazmat"               onclick="pickTag(this)">☣️ Hazmat</div>
+        <!-- NOT YOUR UNIT / INFO -->
+        <div class="ctag t-misc" data-val="Ambulance — NYU Langone (1284)" onclick="pickTag(this)">🏥 Amb. 1284 (NYU)</div>
+        <div class="ctag t-misc" data-val="Mutual Aid — Fire"    onclick="pickTag(this)">🤝 Mutual Aid Fire</div>
+        <div class="ctag t-misc" data-val="Mutual Aid — EMS"     onclick="pickTag(this)">🤝 Mutual Aid EMS</div>
+        <div class="ctag t-misc" data-val="False Alarm"          onclick="pickTag(this)">🔕 False Alarm</div>
+        <div class="ctag t-info" data-val="Training / Drill"     onclick="pickTag(this)">🎓 Training</div>
+        <div class="ctag t-info" data-val="Street Closure"       onclick="pickTag(this)">🚧 Street Closure</div>
+        <div class="ctag t-info" data-val="FYI / Info Only"      onclick="pickTag(this)">📢 FYI Only</div>
+        <div class="ctag t-misc" data-val="Other"                onclick="pickTag(this)">📋 Other</div>
+      </div>
+      <input type="text" class="form-input" id="fCallType" placeholder="Or type custom call type..." style="margin-top:7px;">
+    </div>
+
+    <!-- 3. DATE/TIME -->
+    <div class="form-group">
+      <label class="form-label">Date &amp; Time</label>
+      <input type="datetime-local" class="form-input" id="fDateTime">
+    </div>
+
+    <!-- 4. ALL SELECTION BUTTONS GROUPED -->
+    <div class="btn-group-block">
+      <div class="form-label" style="margin-bottom:8px;">Selections</div>
+
+      <div class="btn-group-row">
+        <div class="btn-group-label">📍 Location</div>
+        <div class="radio-grid">
+          <div class="toggle-big" id="togIn" onclick="setLoc('in')">
+            <div class="t-icon">🏠</div>
+            <div class="t-label">In Town</div>
+          </div>
+          <div class="toggle-big" id="togOut" onclick="setLoc('out')">
+            <div class="t-icon">✈️</div>
+            <div class="t-label">Out of Town</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-group-divider"></div>
+
+      <div class="btn-group-row">
+        <div class="btn-group-label">📋 Response Required?</div>
+        <div class="radio-grid">
+          <div class="rbtn" id="reqYes" onclick="setRequired('yes')">✅ Yes</div>
+          <div class="rbtn" id="reqNo"  onclick="setRequired('no')">🔵 No / FYI</div>
+        </div>
+      </div>
+
+      <div id="respondSection">
+        <div class="btn-group-divider"></div>
+        <div class="btn-group-row">
+          <div class="btn-group-label">🚒 Did You Respond?</div>
+          <div class="radio-grid">
+            <div class="rbtn" id="respYes" onclick="setRespond('yes')">✅ Yes</div>
+            <div class="rbtn" id="respNo"  onclick="setRespond('no')">❌ No</div>
+          </div>
+        </div>
+        <div class="form-group" id="reasonGroup" style="display:none;margin-top:8px;">
+          <label class="form-label">Reason (optional)</label>
+          <select class="form-select" id="fReason">
+            <option value="">Select...</option>
+            <option>Out of town</option>
+            <option>Work</option>
+            <option>Asleep</option>
+            <option>Not my unit</option>
+            <option>Arrived covered</option>
+            <option>Medical / personal</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. NOTES -->
+    <div class="form-group" style="margin-top:12px;">
+      <label class="form-label">Notes</label>
+      <input type="text" class="form-input" id="fNotes" placeholder="Address, box #, unit #, incident notes...">
+    </div>
+
+    <div class="error-msg" id="errMsg"></div>
+    <button class="btn-submit" id="submitBtn" onclick="logCall()">+ LOG CALL</button>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="list-panel">
+    <div class="tab-nav">
+      <div class="tab active" onclick="switchTab('log')">CALL LOG</div>
+      <div class="tab" onclick="switchTab('report')">REPORT</div>
+      <div class="tab" onclick="switchTab('analytics')">ANALYTICS</div>
+      <div class="tab" onclick="switchTab('overnight')">OVERNIGHTS</div>
+      <div class="tab" onclick="switchTab('codes')">NC CODES</div>
+      <div class="tab" onclick="switchTab('howto')">SETUP</div>
+    </div>
+
+    <!-- LOG TAB -->
+    <div class="tab-content active" id="tab-log">
+      <div class="log-header">
+        <div class="log-title" id="logTitle">ALL CALLS</div>
+        <button class="export-btn" onclick="exportCSV()">⬇ EXPORT CSV</button>
+      </div>
+      <div class="legend">
+        <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>Responded</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--amber)"></div>Missed (in town)</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#444"></div>Out of town</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--blue)"></div>No response req.</div>
+      </div>
+      <div class="tbl-head">
+        <div>DATE/TIME</div><div>CALL</div>
+        <div class="th-loc" style="text-align:center">LOCATION</div>
+        <div style="text-align:center">STATUS</div><div></div>
+      </div>
+      <div id="callList">
+        <div class="empty-state"><div class="empty-icon">📟</div>No calls logged yet.<br>Fill out the form and hit LOG CALL.</div>
+      </div>
+    </div>
+
+    <!-- REPORT TAB -->
+    <div class="tab-content" id="tab-report">
+      <div class="log-header" style="margin-bottom:16px;">
+        <div class="log-title">ACTIVITY SUMMARY</div>
+        <button class="export-btn" onclick="exportPDF()" style="border-color:var(--red);color:var(--red);">⬇ EXPORT PDF</button>
+      </div>
+      <div class="report-box">
+        <div class="report-title">📊 RESPONSE STATISTICS</div>
+        <div class="report-pre" id="reportText">Log some calls to generate your summary...</div>
+      </div>
+      <div class="report-box">
+        <div class="report-title">📋 CALL TYPE BREAKDOWN</div>
+        <div id="breakdownTable"><div style="color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px;">No data yet.</div></div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS TAB -->
+    <div class="tab-content" id="tab-analytics">
+      <div class="analytics-grid">
+
+        <!-- STREAK -->
+        <div class="an-card full-width">
+          <div class="an-title">🔥 CURRENT STREAK &amp; RECORDS</div>
+          <div class="streak-row" id="streakRow"></div>
+        </div>
+
+        <!-- ROLLING 90-DAY TREND -->
+        <div class="an-card full-width">
+          <div class="an-title">📈 ROLLING 90-DAY RESPONSE RATE</div>
+          <div class="trend-wrap">
+            <canvas id="trendCanvas" height="90"></canvas>
+          </div>
+          <div class="trend-legend">
+            <span style="color:var(--amber)">▬ 25% threshold</span>
+            <span style="color:var(--blue);margin-left:16px">▬ overall rate</span>
+            <span style="color:var(--green);margin-left:16px">▬ in-town rate</span>
+          </div>
+        </div>
+
+        <!-- TIME-OF-DAY HEATMAP -->
+        <div class="an-card full-width">
+          <div class="an-title">🕐 TIME-OF-DAY HEATMAP — When Calls Come In vs. When You Respond</div>
+          <div class="heatmap-labels-top" id="heatHours"></div>
+          <div class="heatmap-grid" id="heatmapGrid"></div>
+          <div class="heatmap-legend">
+            <span class="heat-swatch" style="background:rgba(212,43,43,0.15)"></span> Calls received &nbsp;
+            <span class="heat-swatch" style="background:var(--green)"></span> Responded &nbsp;
+            <span class="heat-swatch" style="background:var(--amber)"></span> Missed (in town) &nbsp;
+            <span class="heat-swatch" style="background:#333"></span> Out of town
+          </div>
+        </div>
+
+        <!-- DAY OF WEEK -->
+        <div class="an-card">
+          <div class="an-title">📅 CALLS BY DAY OF WEEK</div>
+          <div id="dowChart"></div>
+        </div>
+
+        <!-- CALL VOLUME BY HOUR -->
+        <div class="an-card">
+          <div class="an-title">⏰ CALL VOLUME BY HOUR</div>
+          <div id="hourChart"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- OVERNIGHT COVERAGE TAB -->
+    <div class="tab-content" id="tab-overnight">
+      <div class="ov-header">
+        <div>
+          <div class="log-title">🌙 OVERNIGHT COVERAGE LOG</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:4px;">Log nights you volunteer to cover overnight calls. These count toward your commitment record separate from response rate.</div>
+        </div>
+        <button class="export-btn" onclick="exportOvernights()">⬇ EXPORT CSV</button>
+      </div>
+
+      <!-- ADD OVERNIGHT FORM -->
+      <div class="ov-form">
+        <div class="ov-form-title">LOG AN OVERNIGHT SHIFT</div>
+        <div class="ov-form-row">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Date</label>
+            <input type="date" class="form-input" id="ovDate">
+          </div>
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Coverage Start</label>
+            <input type="time" class="form-input" id="ovStart" value="22:00">
+          </div>
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Coverage End</label>
+            <input type="time" class="form-input" id="ovEnd" value="06:00">
+          </div>
+        </div>
+        <div class="ov-form-row">
+          <div class="form-group" style="flex:2">
+            <label class="form-label">Notes (optional)</label>
+            <input type="text" class="form-input" id="ovNotes" placeholder="e.g. Covered for Smith, heavy weather expected...">
+          </div>
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Any Calls That Night?</label>
+            <div class="radio-grid">
+              <div class="rbtn" id="ovCallYes" onclick="setOvCall('yes')">✅ Yes</div>
+              <div class="rbtn" id="ovCallNo"  onclick="setOvCall('no')">😴 No</div>
+            </div>
+          </div>
+        </div>
+        <div class="error-msg" id="ovErr"></div>
+        <button class="btn-submit" id="ovSubmit" onclick="logOvernight()" style="max-width:200px">+ LOG NIGHT</button>
+      </div>
+
+      <!-- OVERNIGHT STATS -->
+      <div class="ov-stats" id="ovStats"></div>
+
+      <!-- OVERNIGHT LIST -->
+      <div class="tbl-head" style="grid-template-columns:90px 80px 80px 1fr 80px 30px;margin-top:16px;">
+        <div>DATE</div><div>START</div><div>END</div><div>NOTES</div><div style="text-align:center">CALLS</div><div></div>
+      </div>
+      <div id="overnightList">
+        <div class="empty-state"><div class="empty-icon">🌙</div>No overnights logged yet.</div>
+      </div>
+    </div>
+
+    <!-- NC SIGNAL CODES TAB -->
+    <div class="tab-content" id="tab-codes">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:14px;">Nassau County Fire Department Signal Codes — used for SMS dispatch parsing and quick reference. Highlighted signals are most common active responses.</div>
+      <div class="codes-grid">
+
+        <div class="codes-section">
+          <div class="codes-section-title">🚨 Active Response Signals</div>
+          <div class="code-row highlight"><span class="code-num">Sig 8</span><span class="code-desc">Still Alarm</span></div>
+          <div class="code-row highlight"><span class="code-num">Sig 9</span><span class="code-desc">Emergency / Rescue</span></div>
+          <div class="code-row highlight"><span class="code-num">Sig 9A</span><span class="code-desc">Ambulance Call</span></div>
+          <div class="code-row highlight"><span class="code-num">Sig 10</span><span class="code-desc">Working Fire — clear the frequency</span></div>
+          <div class="code-row highlight"><span class="code-num">Sig 32</span><span class="code-desc">General Alarm</span></div>
+          <div class="code-row highlight"><span class="code-num">Sig 33</span><span class="code-desc">Request Mutual Aid</span></div>
+          <div class="code-row highlight"><span class="code-num">Sig 34</span><span class="code-desc">Invalid / Handicap in Building</span></div>
+          <div class="code-row highlight"><span class="code-num">Sig 25HM</span><span class="code-desc">Request Fire Marshal — Hazmat</span></div>
+          <div class="code-row"><span class="code-num">Sig 25</span><span class="code-desc">Request Fire Marshal immediately</span></div>
+          <div class="code-row"><span class="code-num">Sig 25D</span><span class="code-desc">Fire Marshal — Death at scene</span></div>
+        </div>
+
+        <div class="codes-section">
+          <div class="codes-section-title">📻 Unit Status</div>
+          <div class="code-row"><span class="code-num">Sig 17</span><span class="code-desc">Unit out of service</span></div>
+          <div class="code-row"><span class="code-num">Sig 18</span><span class="code-desc">Unit in service</span></div>
+          <div class="code-row"><span class="code-num">Sig 19</span><span class="code-desc">Leaving fire district</span></div>
+          <div class="code-row"><span class="code-num">Sig 20</span><span class="code-desc">Returning to fire district</span></div>
+          <div class="code-row"><span class="code-num">Sig 21</span><span class="code-desc">Responding to scene</span></div>
+          <div class="code-row"><span class="code-num">Sig 21/C1</span><span class="code-desc">Responding — AEMT on board</span></div>
+          <div class="code-row"><span class="code-num">Sig 21/C2</span><span class="code-desc">Responding — EMT on board</span></div>
+          <div class="code-row"><span class="code-num">Sig 22</span><span class="code-desc">Arrived at scene</span></div>
+          <div class="code-row"><span class="code-num">Sig 23</span><span class="code-desc">Message received</span></div>
+          <div class="code-row"><span class="code-num">Sig 6</span><span class="code-desc">Stand by for orders</span></div>
+          <div class="code-row"><span class="code-num">Sig 13</span><span class="code-desc">Return to quarters</span></div>
+          <div class="code-row"><span class="code-num">Sig 61</span><span class="code-desc">No driver available</span></div>
+          <div class="code-row"><span class="code-num">Sig 61C</span><span class="code-desc">No crew available</span></div>
+        </div>
+
+        <div class="codes-section">
+          <div class="codes-section-title">🔥 Fire Operations</div>
+          <div class="code-row"><span class="code-num">Sig 12</span><span class="code-desc">Fire under control</span></div>
+          <div class="code-row"><span class="code-num">Sig 12A</span><span class="code-desc">SCBA no longer needed</span></div>
+          <div class="code-row"><span class="code-num">Sig 28</span><span class="code-desc">Refill air bottles at scene</span></div>
+          <div class="code-row"><span class="code-num">Sig 31</span><span class="code-desc">Request fuel at scene</span></div>
+          <div class="code-row"><span class="code-num">Sig 35</span><span class="code-desc">Switch to countywide frequency</span></div>
+          <div class="code-row"><span class="code-num">Sig 36</span><span class="code-desc">Switch to battalion frequency</span></div>
+          <div class="code-row"><span class="code-num">Sig 37</span><span class="code-desc">Switch to unit-to-unit frequency</span></div>
+          <div class="code-row"><span class="code-num">Sig 40</span><span class="code-desc">Give unit location</span></div>
+          <div class="code-row"><span class="code-num">Sig 41</span><span class="code-desc">Sound horns / evacuate building</span></div>
+          <div class="code-row"><span class="code-num">Sig 49</span><span class="code-desc">D.O.A.</span></div>
+          <div class="code-row"><span class="code-num">Sig 50</span><span class="code-desc">Request police — disturbance</span></div>
+        </div>
+
+        <div class="codes-section">
+          <div class="codes-section-title">📞 Requests &amp; Resources</div>
+          <div class="code-row"><span class="code-num">Sig 11</span><span class="code-desc">Call [unit] by landline</span></div>
+          <div class="code-row"><span class="code-num">Sig 14</span><span class="code-desc">Request police — traffic</span></div>
+          <div class="code-row"><span class="code-num">Sig 14A</span><span class="code-desc">Request police ambulance</span></div>
+          <div class="code-row"><span class="code-num">Sig 14M</span><span class="code-desc">Request police — mental case</span></div>
+          <div class="code-row"><span class="code-num">Sig 14R</span><span class="code-desc">Request police rescue</span></div>
+          <div class="code-row"><span class="code-num">Sig 16</span><span class="code-desc">Request doctor</span></div>
+          <div class="code-row"><span class="code-num">Sig 24</span><span class="code-desc">Request fire marshal — routine</span></div>
+          <div class="code-row"><span class="code-num">Sig 26</span><span class="code-desc">Request Health Department</span></div>
+          <div class="code-row"><span class="code-num">Sig 27E</span><span class="code-desc">Request LIPA — Electric</span></div>
+          <div class="code-row"><span class="code-num">Sig 27G</span><span class="code-desc">Request KeySpan — Gas</span></div>
+          <div class="code-row"><span class="code-num">Sig 27H</span><span class="code-desc">Request Highway Dept</span></div>
+          <div class="code-row"><span class="code-num">Sig 27R</span><span class="code-desc">Request Long Island Railroad</span></div>
+          <div class="code-row"><span class="code-num">Sig 27W</span><span class="code-desc">Request Water Authority</span></div>
+          <div class="code-row"><span class="code-num">Sig 29</span><span class="code-desc">Request chaplain</span></div>
+          <div class="code-row"><span class="code-num">Sig 30</span><span class="code-desc">Request refreshments at scene</span></div>
+        </div>
+
+        <div class="codes-section">
+          <div class="codes-section-title">📚 Training &amp; Admin</div>
+          <div class="code-row"><span class="code-num">Sig 38</span><span class="code-desc">Training / Drill</span></div>
+          <div class="code-row"><span class="code-num">Sig 39</span><span class="code-desc">Verify alarm location</span></div>
+          <div class="code-row"><span class="code-num">Sig 71</span><span class="code-desc">Company meeting</span></div>
+          <div class="code-row"><span class="code-num">Sig 72</span><span class="code-desc">Company drill</span></div>
+          <div class="code-row"><span class="code-num">Sig 72B</span><span class="code-desc">Company drill at NCFSA</span></div>
+          <div class="code-row"><span class="code-num">Sig 75</span><span class="code-desc">Officers' meeting</span></div>
+          <div class="code-row"><span class="code-num">Sig 76</span><span class="code-desc">Department meeting</span></div>
+          <div class="code-row"><span class="code-num">Sig 77</span><span class="code-desc">Department drill</span></div>
+          <div class="code-row"><span class="code-num">Sig 78</span><span class="code-desc">Funeral</span></div>
+          <div class="code-row"><span class="code-num">Sig 80</span><span class="code-desc">Parade</span></div>
+          <div class="code-row"><span class="code-num">Sig 82</span><span class="code-desc">Fund drive</span></div>
+          <div class="code-row"><span class="code-num">Sig 84</span><span class="code-desc">Clean up</span></div>
+          <div class="code-row"><span class="code-num">Sig 86</span><span class="code-desc">Blood drive</span></div>
+          <div class="code-row"><span class="code-num">Sig 87</span><span class="code-desc">Physical exam</span></div>
+          <div class="code-row"><span class="code-num">Sig 99</span><span class="code-desc">Unnecessary / False Alarm</span></div>
+        </div>
+
+        <div class="codes-section">
+          <div class="codes-section-title">🚒 Battalion Reference</div>
+          <div class="code-row"><span class="code-num">Bat 1</span><span class="code-desc">Bellerose, Floral Park, Garden City, Mineola, NHP, Stewart Manor</span></div>
+          <div class="code-row"><span class="code-num">Bat 2</span><span class="code-desc">Baldwin, Freeport, Island Park, Long Beach, Oceanside, Pt. Lookout</span></div>
+          <div class="code-row"><span class="code-num">Bat 3</span><span class="code-desc">Hewlett, Inwood, Lawrence-Cedarhurst, Valley Stream, Woodmere</span></div>
+          <div class="code-row"><span class="code-num">Bat 4</span><span class="code-desc">East Rockaway, Lakeview, Lynbrook, Malverne, Rockville Centre</span></div>
+          <div class="code-row"><span class="code-num">Bat 5</span><span class="code-desc">Bayville, Glen Cove, Locust Valley, Oyster Bay, Roslyn, Syosset</span></div>
+          <div class="code-row"><span class="code-num">Bat 6</span><span class="code-desc">Bellmore, East Meadow, Levittown, Massapequa, Merrick, Seaford, Wantagh</span></div>
+          <div class="code-row"><span class="code-num">Bat 7</span><span class="code-desc">Elmont, Franklin Square, Hempstead, Roosevelt, Uniondale, W. Hempstead</span></div>
+          <div class="code-row"><span class="code-num">Bat 8</span><span class="code-desc">Albertson, Great Neck, Manhasset-Lakeville, Port Washington, Williston Park</span></div>
+          <div class="code-row"><span class="code-num">Bat 9</span><span class="code-desc">Bethpage, Carle Place, Farmingdale, Hicksville, Jericho, Plainview, Westbury</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SETUP GUIDE TAB -->
+    <div class="tab-content" id="tab-howto">
+      <div class="report-box">
+        <div class="report-title">🤖 AUTOMATION &amp; SETUP GUIDE</div>
+        <div class="report-pre">GOAL: When a dispatch text arrives, automatically log
+the call AND capture your GPS — zero manual entry.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OPTION A: ANDROID + TASKER (~$3.50 one-time)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Install Tasker from Google Play
+2. Install AutoLocation plugin (free)
+3. Create Profile:
+   TRIGGER: SMS Received FROM [your dept number]
+   ACTIONS:
+     a. Get GPS coords (AutoLocation)
+     b. HTTP POST to Google Sheets webhook:
+        → timestamp, GPS lat/lng, SMS body text
+4. Google Apps Script receives the POST, logs row
+5. Export that sheet monthly and import CSV here
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OPTION B: iOS SHORTCUTS (free, built-in)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Shortcuts → Automation → New → Message Received
+2. From: [your dept dispatch number]
+3. Actions:
+   a. Get Current Location
+   b. Get Contents of URL (POST request):
+      → URL: your Google Sheets webhook
+      → Body: Date, Location, Message body
+Note: iOS 17+ supports fully silent automations.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ZAPIER NOTE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Zapier can't read your phone's SMS directly.
+Best path if your dept uses Active911, Resgrid,
+or email-based CAD dispatch — Zapier watches
+that inbox and logs calls automatically.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NASSAU COUNTY SMS DISPATCH FORMAT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Typical formats this app recognizes:
+
+  "Signal 10 / 123 Main St, Floral Park"
+  "Sig 9 / Signal 9 Cardiac 45 Oak Ave"
+  "WORKING FIRE Box 4-4 Mutual Aid Req"
+  "Signal 33 request from Mineola"
+  "Signal 9A Ambulance 78 Park Blvd"
+  "Signal 99 / False Alarm 200 Elm St"
+  "Signal 32 General Alarm Hempstead"
+
+The parser reads the signal number first, then
+falls back to keyword matching if no signal
+number is found.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SHARING YOUR REPORT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Use the REPORT tab to view your activity
+summary and export a formatted PDF showing
+your response statistics, availability
+breakdown, call patterns, and overnight
+coverage hours.</div>
+      </div>
+    </div>
+
+  </div><!-- end list-panel -->
+</div><!-- end main -->
+
+<script>
+// ── GOOGLE SHEETS SYNC ───────────────────────────────────
+var SHEET_URL = localStorage.getItem('fpfd_sheet_url') || '';
+
+function setSheetURL(url) {
+  SHEET_URL = url.trim();
+  localStorage.setItem('fpfd_sheet_url', SHEET_URL);
+}
+
+function sheetFetch(payload) {
+  if (!SHEET_URL) return Promise.resolve(null);
+  return fetch(SHEET_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  }).then(function() { return true; }).catch(function(e) {
+    console.warn('Sheet sync failed:', e); return false;
+  });
+}
+
+function syncToSheet(action, table, row) {
+  return sheetFetch({ action: action, table: table, row: row });
+}
+
+function loadFromSheet() {
+  if (!SHEET_URL) return Promise.resolve(false);
+  setSyncStatus('syncing');
+  return fetch(SHEET_URL + '?action=load')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.calls)      { calls      = sanitizeCalls(data.calls); localStorage.setItem('fpfd_v4', JSON.stringify(calls)); }
+      if (data.overnights) { overnights = data.overnights; localStorage.setItem('fpfd_overnights_v1', JSON.stringify(overnights)); }
+      setSyncStatus('ok');
+      populateMonths(); render();
+      return true;
+    })
+    .catch(function(e) {
+      console.warn('Load from sheet failed:', e);
+      setSyncStatus('error');
+      return false;
+    });
+}
+
+function setSyncStatus(state) {
+  var el = document.getElementById('syncStatus');
+  if (!el) return;
+  var states = {
+    ok:      { text: '☁ Synced',         color: 'var(--green)' },
+    syncing: { text: '↻ Syncing...',      color: 'var(--amber)' },
+    error:   { text: '⚠ Sync error',      color: 'var(--red)'   },
+    nosheet: { text: '💾 Local only',     color: 'var(--muted)' }
+  };
+  var s = states[state] || states.nosheet;
+  el.textContent = s.text;
+  el.style.color  = s.color;
+}
+
+// ── DATA ─────────────────────────────────────────────────
+// ── BOOLEAN SANITIZER ────────────────────────────────────
+// Handles any format booleans may arrive in from localStorage
+// or Google Sheets: true, false, 'TRUE', 'true', 'Yes', 1, 0, null
+function toBool(v) {
+  if (v === true  || v === 1 || v === 'TRUE'  || v === 'true'  || v === 'Yes' || v === 'yes') return true;
+  if (v === false || v === 0 || v === 'FALSE' || v === 'false' || v === 'No'  || v === 'no')  return false;
+  return null; // null = N/A (informational call, no response required)
+}
+
+function sanitizeCalls(arr) {
+  return (arr || []).map(function(c) {
+    return {
+      id:        c.id,
+      datetime:  String(c.datetime  || ''),
+      callType:  String(c.callType  || ''),
+      inTown:    toBool(c.inTown)   === true,
+      required:  toBool(c.required) === true,
+      responded: toBool(c.responded),
+      reason:    String(c.reason    || ''),
+      notes:     String(c.notes     || '')
+    };
+  });
+}
+
+var calls = sanitizeCalls(JSON.parse(localStorage.getItem('fpfd_v4') || '[]'));
+var selLoc = null, selRequired = null, selRespond = null;
+var activeMonth = 'all';
+
+// No-response-required call types
+var NR_TYPES = ['training','drill','street closure','fyi','info only','meeting','fund drive','blood drive','physical exam','parade','funeral','clean up','softball','picnic','nyu langone','ambulance 1284','1284','mutual aid'];
+
+// ── NASSAU COUNTY SIGNAL MAP ──────────────────────────────
+var SIGNAL_MAP = {
+  '8':   { label: 'Signal 8 — Still Alarm',        required: true  },
+  '9':   { label: 'Signal 9 — Emergency/Rescue',   required: true  },
+  '9a':  { label: 'Signal 9A — Ambulance Call',    required: true  },
+  '10':  { label: 'Signal 10 — Working Fire',       required: true  },
+  '12':  { label: 'Signal 12 — Fire Under Control', required: false },
+  '12a': { label: 'Signal 12A — SCBA Not Needed',   required: false },
+  '13':  { label: 'Signal 13 — Return to Quarters', required: false },
+  '14':  { label: 'Signal 14 — Police for Traffic', required: false },
+  '14a': { label: 'Signal 14A — Police Ambulance',  required: true  },
+  '14m': { label: 'Signal 14M — Police/Mental',     required: true  },
+  '14r': { label: 'Signal 14R — Police Rescue',     required: true  },
+  '25':  { label: 'Signal 25 — Fire Marshal Immed', required: false },
+  '25d': { label: 'Signal 25D — Fire Marshal/Death',required: false },
+  '25hm':{ label: 'Signal 25HM — Hazmat',           required: true  },
+  '32':  { label: 'Signal 32 — General Alarm',      required: true  },
+  '33':  { label: 'Signal 33 — Mutual Aid Request', required: true  },
+  '34':  { label: 'Signal 34 — Invalid in Building',required: true  },
+  '38':  { label: 'Signal 38 — Training/Drill',     required: false },
+  '49':  { label: 'Signal 49 — D.O.A.',             required: false },
+  '50':  { label: 'Signal 50 — Police/Disturbance', required: false },
+  '71':  { label: 'Signal 71 — Company Meeting',    required: false },
+  '72':  { label: 'Signal 72 — Company Drill',      required: false },
+  '75':  { label: 'Signal 75 — Officers Meeting',   required: false },
+  '76':  { label: 'Signal 76 — Dept Meeting',       required: false },
+  '77':  { label: 'Signal 77 — Dept Drill',         required: false },
+  '78':  { label: 'Signal 78 — Funeral',            required: false },
+  '80':  { label: 'Signal 80 — Parade',             required: false },
+  '82':  { label: 'Signal 82 — Fund Drive',         required: false },
+  '84':  { label: 'Signal 84 — Clean Up',           required: false },
+  '86':  { label: 'Signal 86 — Blood Drive',        required: false },
+  '87':  { label: 'Signal 87 — Physical Exam',      required: false },
+  '99':  { label: 'Signal 99 — False Alarm',        required: false },
+  '99a': { label: 'Signal 99A — False Alarm',       required: false }
+};
+
+// ── INIT ──────────────────────────────────────────────────
+window.onload = function() {
+  setNow(); populateMonths(); render();
+  if (SHEET_URL) { loadFromSheet(); } else { setSyncStatus('nosheet'); }
+};
+
+function setNow() {
+  var now = new Date();
+  var p = function(n){return String(n).padStart(2,'0');};
+  document.getElementById('fDateTime').value =
+    now.getFullYear()+'-'+p(now.getMonth()+1)+'-'+p(now.getDate())+'T'+p(now.getHours())+':'+p(now.getMinutes());
+  var ovDateEl = document.getElementById('ovDate');
+  if (ovDateEl) ovDateEl.value = now.getFullYear()+'-'+p(now.getMonth()+1)+'-'+p(now.getDate());
+}
+
+function save() { localStorage.setItem('fpfd_v4', JSON.stringify(calls)); }
+
+function populateMonths() {
+  var sel = document.getElementById('monthSelect');
+  while (sel.options.length > 1) sel.remove(1);
+  var months = {};
+  calls.forEach(function(c){months[c.datetime.slice(0,7)]=1;});
+  var now = new Date();
+  var p = function(n){return String(n).padStart(2,'0');};
+  months[now.getFullYear()+'-'+p(now.getMonth()+1)] = 1;
+  Object.keys(months).sort().reverse().forEach(function(m){
+    var o = document.createElement('option');
+    o.value = m;
+    var pts = m.split('-');
+    o.textContent = new Date(parseInt(pts[0]),parseInt(pts[1])-1,1)
+      .toLocaleDateString('en-US',{month:'long',year:'numeric'}).toUpperCase();
+    sel.appendChild(o);
+  });
+  sel.value = activeMonth;
+}
+
+function filterByMonth() { activeMonth = document.getElementById('monthSelect').value; render(); }
+function filtered() { return activeMonth==='all' ? calls : calls.filter(function(c){return c.datetime.startsWith(activeMonth);}); }
+
+// ── FORM SETTERS ──────────────────────────────────────────
+function setLoc(v) {
+  selLoc = v;
+  document.getElementById('togIn').className  = 'toggle-big'+(v==='in' ?' sel-intown':'');
+  document.getElementById('togOut').className = 'toggle-big'+(v==='out'?' sel-out':'');
+}
+
+function setRequired(v) {
+  selRequired = v;
+  document.getElementById('reqYes').className = 'rbtn'+(v==='yes'?' sel-red':'');
+  document.getElementById('reqNo').className  = 'rbtn'+(v==='no' ?' sel-amber':'');
+  document.getElementById('respondSection').style.display = (v==='yes')?'block':'none';
+  if (v==='no'){
+    selRespond = null;
+    document.getElementById('respYes').className = 'rbtn';
+    document.getElementById('respNo').className  = 'rbtn';
+    document.getElementById('reasonGroup').style.display = 'none';
+  }
+}
+
+function setRespond(v) {
+  selRespond = v;
+  document.getElementById('respYes').className = 'rbtn'+(v==='yes'?' sel-green':'');
+  document.getElementById('respNo').className  = 'rbtn'+(v==='no' ?' sel-red':'');
+  document.getElementById('reasonGroup').style.display = (v==='no')?'block':'none';
+}
+
+function pickTag(el) {
+  var val = el.getAttribute('data-val');
+  document.getElementById('fCallType').value = val;
+  document.querySelectorAll('.ctag').forEach(function(t){t.classList.remove('sel');});
+  el.classList.add('sel');
+  var lower = val.toLowerCase();
+  var isNR = NR_TYPES.some(function(k){return lower.indexOf(k)!==-1;});
+  if (isNR) setRequired('no');
+  else if (selRequired==='no') {
+    // reset if they re-pick an active call
+    document.getElementById('reqYes').className = 'rbtn';
+    document.getElementById('reqNo').className  = 'rbtn';
+    selRequired = null;
+    document.getElementById('respondSection').style.display = 'block';
+  }
+}
+
+// ── SMS PARSER ────────────────────────────────────────────
+function parseSMS() {
+  var txt = document.getElementById('smsRaw').value.trim();
+  if (!txt) { showError('Paste a dispatch text first.'); return; }
+  var result = null;
+
+  // ── STEP 1: Parse the ***Category*** ***Label*** header format ──────────────
+  // Your dept format: ***Fire - AUTOMAT*** ***Automatic Alarm***
+  // Extract both the category block and the label block
+  var headerMatches = txt.match(/\*{3}([^*]+)\*{3}/g) || [];
+  var headers = headerMatches.map(function(h) { return h.replace(/\*/g,'').trim().toLowerCase(); });
+  var cat   = headers[0] || '';   // e.g. "fire - automat"
+  var label = headers[1] || '';   // e.g. "automatic alarm"
+
+  // ── STEP 2: Exact label matching — most reliable ────────────────────────────
+  // NYU Langone / Unit 1284 — check FIRST before generic ambulance
+  if (/ambulance.*1284|1284|nyu.?langone/i.test(label) || /ambulance.*1284|1284|nyu.?langone/i.test(cat)) {
+    result = { label: 'Ambulance — NYU Langone (1284)', required: false };
+  }
+  // Ambulance — your unit (no 1284, no NYU)
+  else if (/^ambulance$/i.test(label) || (cat.includes('rescue') && label.includes('ambulance') && !label.includes('1284'))) {
+    result = { label: 'Ambulance', required: true };
+  }
+  // Automatic Alarm
+  else if (/automatic.?alarm|automat/i.test(label) || /automat/i.test(cat)) {
+    result = { label: 'Automatic Alarm', required: true };
+  }
+  // Natural Gas Inside
+  else if (/natural.?gas.*inside/i.test(label) || /natural.?gas.*inside/i.test(cat)) {
+    result = { label: 'Natural Gas — Inside', required: true };
+  }
+  // Natural Gas Outside
+  else if (/natural.?gas.*outside/i.test(label) || /natural.?gas.*outside/i.test(cat)) {
+    result = { label: 'Natural Gas — Outside', required: true };
+  }
+  // Natural Gas generic (no inside/outside specified)
+  else if (/natural.?gas/i.test(label) || /natural.?gas/i.test(cat)) {
+    result = { label: 'Natural Gas — Inside', required: true };
+  }
+  // MVA
+  else if (/^mva$/i.test(label) || /fire.*mva/i.test(cat)) {
+    result = { label: 'MVA', required: true };
+  }
+  // Working / Structure Fire
+  else if (/working.?fire|structure.?fire/i.test(label) || /working.?fire|structure.?fire/i.test(cat)) {
+    result = { label: 'Working Fire', required: true };
+  }
+  // Vehicle Fire
+  else if (/vehicle.?fire|car.?fire/i.test(label)) {
+    result = { label: 'Vehicle Fire', required: true };
+  }
+  // Brush / Grass Fire
+  else if (/brush.?fire|grass.?fire|woods.?fire/i.test(label)) {
+    result = { label: 'Brush / Grass Fire', required: true };
+  }
+  // Wires Down / Electrical
+  else if (/wires?.?down|power.?line|electrical|utility/i.test(label) || /wires?.?down|electrical/i.test(cat)) {
+    result = { label: 'Wires Down', required: true };
+  }
+  // Hazmat
+  else if (/hazmat|haz.?mat/i.test(label) || /hazmat/i.test(cat)) {
+    result = { label: 'Hazmat', required: true };
+  }
+  // Rescue — Entrapment
+  else if (/entrap|extrication/i.test(label) || /entrap|extrication/i.test(cat)) {
+    result = { label: 'Rescue — Entrapment', required: true };
+  }
+  // Mutual Aid
+  else if (/mutual.?aid/i.test(label) || /mutual.?aid/i.test(cat)) {
+    result = { label: 'Mutual Aid — Fire', required: false };
+  }
+  // False Alarm
+  else if (/false.?alarm/i.test(label)) {
+    result = { label: 'False Alarm', required: false };
+  }
+  // Training / Drill
+  else if (/drill|training/i.test(label)) {
+    result = { label: 'Training / Drill', required: false };
+  }
+
+  // ── STEP 3: Notes / free text fallback (bottom of message) ─────────────────
+  // Strip the header lines and look at the notes text
+  if (!result) {
+    var lo = txt.toLowerCase();
+    // Remove the ***...*** headers and address lines to isolate notes
+    var notes = txt.replace(/\*{3}[^*]+\*{3}/g,'').replace(/TOA:[^\n]+/gi,'')
+                   .replace(/\d{4}-\d{6}/g,'').replace(/CS:[^\n]+/gi,'').toLowerCase();
+
+    if (/cardiac|chest.?pain|\/ams\b|ams\b/.test(lo))
+      result = { label: 'EMS — Cardiac', required: true };
+    else if (/diff.?walk|fall|fell|trauma|lacerat|stab|gsw/.test(notes))
+      result = { label: notes.includes('fall') || notes.includes('fell') ? 'EMS — Fall' : 'EMS — Trauma', required: true };
+    else if (/respiratory|breathing|diff.?breath|sob/.test(notes))
+      result = { label: 'EMS — Respiratory', required: true };
+    else if (/odor|gas|smell/.test(notes))
+      result = { label: 'Natural Gas — Inside', required: true };
+    else if (/smoke|smk|fire/.test(notes))
+      result = { label: 'Automatic Alarm', required: true };
+    else if (/mva|crash|accident|collision/.test(lo))
+      result = { label: 'MVA', required: true };
+    else if (/wire|power.?line/.test(lo))
+      result = { label: 'Wires Down', required: true };
+    else if (/street.?clos|road.?clos/.test(lo))
+      result = { label: 'Street Closure', required: false };
+    else if (/fyi|info.?only|no.?response/.test(lo))
+      result = { label: 'FYI / Info Only', required: false };
+    else
+      result = { label: 'Other', required: true };
+  }
+
+  // Apply to form
+  document.getElementById('fCallType').value = result.label;
+  document.getElementById('fNotes').value = txt.slice(0,120);
+
+  // Highlight matching tag
+  document.querySelectorAll('.ctag').forEach(function(t){
+    t.classList.remove('sel');
+    if (t.getAttribute('data-val') === result.label) t.classList.add('sel');
+  });
+
+  // Auto-set response required
+  setRequired(result.required ? 'yes' : 'no');
+
+  // ── EXTRACT DATE/TIME FROM SMS TEXT ──────────────────────
+  var parsedDT = extractDateTime(txt);
+  var dtNote = '';
+  if (parsedDT) {
+    document.getElementById('fDateTime').value = parsedDT;
+    dtNote = ' · 🕐 time set from text';
+  } else {
+    dtNote = ' · ⚠ no time found in text — check date/time field';
+  }
+
+  // Show confirmation
+  var res = document.getElementById('parseResult');
+  res.textContent = '✓ Parsed: ' + result.label + (result.required ? ' — response required' : ' — no response required') + dtNote;
+  res.style.display = 'block';
+  showError('');
+}
+
+// ── DATETIME EXTRACTOR ────────────────────────────────────
+// Handles many common dispatch SMS formats:
+//   "03/18/2026 14:32"  "3/18/26 2:32 PM"  "Mar 18 2026 14:32"
+//   "2026-03-18 14:32"  "18-MAR-2026 1432"  "1432 hrs"  "at 14:32"
+//   "03/18 14:32"  "Tuesday March 18 2:32PM"
+function extractDateTime(txt) {
+  var now = new Date();
+  var p = function(n){ return String(n).padStart(2,'0'); };
+
+  // Helper: build datetime-local string
+  function fmt(yr, mo, dy, hr, mn) {
+    return yr+'-'+p(mo)+'-'+p(dy)+'T'+p(hr)+':'+p(mn);
+  }
+
+  // Helper: convert 12h to 24h
+  function to24(h, m, ampm) {
+    h = parseInt(h); m = parseInt(m);
+    if (ampm) {
+      var ap = ampm.toLowerCase().replace(/[^a-z]/g,'');
+      if (ap === 'pm' && h !== 12) h += 12;
+      if (ap === 'am' && h === 12) h = 0;
+    }
+    return { h: h, m: m };
+  }
+
+  // Month name lookup
+  var MONTHS = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
+
+  var yr, mo, dy, hr, mn, t;
+
+  // ── Pattern 0: TOA: HH:MM MM/DD/YY  (Nassau County dispatch format)
+  // e.g. "TOA: 08:05 03/18/26"  "TOA: 14:32 03/18/2026"
+  var m = txt.match(/TOA\s*:\s*(\d{1,2}):(\d{2})\s+(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i);
+  if (m) {
+    yr = m[5].length===2 ? 2000+parseInt(m[5]) : parseInt(m[5]);
+    return fmt(yr, parseInt(m[3]), parseInt(m[4]), parseInt(m[1]), parseInt(m[2]));
+  }
+
+  // ── Pattern 1: MM/DD/YYYY HH:MM (with optional AM/PM)
+  // e.g. "03/18/2026 14:32"  "3/18/2026 2:32 PM"
+  m = txt.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+  if (m) {
+    t = to24(m[4], m[5], m[6]);
+    yr = m[3].length===2 ? 2000+parseInt(m[3]) : parseInt(m[3]);
+    return fmt(yr, parseInt(m[1]), parseInt(m[2]), t.h, t.m);
+  }
+
+  // ── Pattern 2: MM/DD/YY HH:MM (2-digit year)
+  m = txt.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2})\s+(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+  if (m) {
+    t = to24(m[4], m[5], m[6]);
+    return fmt(2000+parseInt(m[3]), parseInt(m[1]), parseInt(m[2]), t.h, t.m);
+  }
+
+  // ── Pattern 3: YYYY-MM-DD HH:MM (ISO-ish)
+  m = txt.match(/\b(\d{4})-(\d{2})-(\d{2})[T\s]+(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+  if (m) {
+    t = to24(m[4], m[5], m[6]);
+    return fmt(parseInt(m[1]), parseInt(m[2]), parseInt(m[3]), t.h, t.m);
+  }
+
+  // ── Pattern 4: DD-MON-YYYY HH:MM or HHMM  e.g. "18-MAR-2026 1432"
+  m = txt.match(/\b(\d{1,2})[.\-]([a-z]{3})[.\-](\d{2,4})\s+(\d{2})(\d{2})\b/i);
+  if (m) {
+    mo = MONTHS[m[2].toLowerCase().slice(0,3)];
+    yr = m[3].length===2 ? 2000+parseInt(m[3]) : parseInt(m[3]);
+    if (mo) return fmt(yr, mo, parseInt(m[1]), parseInt(m[4]), parseInt(m[5]));
+  }
+
+  // ── Pattern 5: MonthName DD YYYY HH:MM  e.g. "March 18 2026 14:32" or "Mar 18 2:32 PM"
+  m = txt.match(/\b([a-z]{3,9})\s+(\d{1,2})[,\s]+(\d{2,4})\s+(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+  if (m) {
+    mo = MONTHS[m[1].toLowerCase().slice(0,3)];
+    t  = to24(m[4], m[5], m[6]);
+    yr = m[3].length===2 ? 2000+parseInt(m[3]) : parseInt(m[3]);
+    if (mo) return fmt(yr, mo, parseInt(m[2]), t.h, t.m);
+  }
+
+  // ── Pattern 6: MM/DD HH:MM (no year — use current year)
+  m = txt.match(/\b(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+  if (m) {
+    t = to24(m[3], m[4], m[5]);
+    return fmt(now.getFullYear(), parseInt(m[1]), parseInt(m[2]), t.h, t.m);
+  }
+
+  // ── Pattern 7: Military 4-digit time with "hrs" or "hours"
+  // e.g. "1432 hrs"  "at 0912 hours"  "dispatched 2315"
+  m = txt.match(/\b(\d{2})(\d{2})\s*(?:hrs?|hours?)\b/i);
+  if (!m) m = txt.match(/(?:at|@|dispatched|toned|time[:\s])\s*(\d{2})(\d{2})\b/i);
+  if (m) {
+    hr = parseInt(m[1]); mn = parseInt(m[2]);
+    if (hr <= 23 && mn <= 59) {
+      return fmt(now.getFullYear(), now.getMonth()+1, now.getDate(), hr, mn);
+    }
+  }
+
+  // ── Pattern 8: HH:MM with optional AM/PM standalone
+  // e.g. "at 2:32 PM"  "time: 14:32"  "@ 09:15"
+  m = txt.match(/(?:at|@|time[:\s]|dispatched|toned)\s*(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+  if (!m) m = txt.match(/\b(\d{1,2}):(\d{2})\s*(am|pm)\b/i); // only with AM/PM if no prefix
+  if (m) {
+    t = to24(m[1], m[2], m[3]);
+    if (t.h <= 23 && t.m <= 59) {
+      return fmt(now.getFullYear(), now.getMonth()+1, now.getDate(), t.h, t.m);
+    }
+  }
+
+  return null; // No datetime found
+}
+
+// ── LOG CALL ──────────────────────────────────────────────
+function logCall() {
+  var dt       = document.getElementById('fDateTime').value;
+  var callType = document.getElementById('fCallType').value.trim();
+  var notes    = document.getElementById('fNotes').value.trim();
+  var reason   = document.getElementById('fReason').value;
+
+  if (!dt)               { showError('⚠ Please set a date and time.'); return; }
+  if (!callType)         { showError('⚠ Please select or type a call type.'); return; }
+  if (!selLoc)           { showError('⚠ Were you in town or out of town?'); return; }
+  if (selRequired===null){ showError('⚠ Was a response required for this call?'); return; }
+  if (selRequired==='yes' && selRespond===null){ showError('⚠ Did you respond to this call?'); return; }
+
+  var newCall = {
+    id: Date.now(),
+    datetime: dt,
+    callType: callType,
+    inTown: selLoc==='in',
+    required: selRequired==='yes',
+    responded: selRequired==='no' ? null : (selRespond==='yes'),
+    reason: reason||'',
+    notes: notes
+  };
+  calls.unshift(newCall);
+  save(); resetForm(); populateMonths(); render(); showError('');
+
+  var btn = document.getElementById('submitBtn');
+  btn.textContent = '✓ LOGGED!';
+  btn.style.background = 'var(--green)';
+  setTimeout(function(){ btn.textContent='+ LOG CALL'; btn.style.background='var(--red)'; }, 1600);
+
+  setSyncStatus('syncing');
+  syncToSheet('insert', 'calls', newCall).then(function(ok) {
+    setSyncStatus(ok && SHEET_URL ? 'ok' : (SHEET_URL ? 'error' : 'nosheet'));
+  });
+}
+
+function showError(msg) {
+  var el = document.getElementById('errMsg');
+  el.textContent = msg; el.style.display = msg?'block':'none';
+}
+
+function resetForm() {
+  selLoc=null; selRequired=null; selRespond=null;
+  ['togIn','togOut'].forEach(function(id){document.getElementById(id).className='toggle-big';});
+  ['reqYes','reqNo','respYes','respNo'].forEach(function(id){document.getElementById(id).className='rbtn';});
+  document.querySelectorAll('.ctag').forEach(function(t){t.classList.remove('sel');});
+  document.getElementById('fCallType').value='';
+  document.getElementById('fNotes').value='';
+  document.getElementById('smsRaw').value='';
+  document.getElementById('fReason').value='';
+  document.getElementById('reasonGroup').style.display='none';
+  document.getElementById('respondSection').style.display='block';
+  document.getElementById('parseResult').style.display='none';
+  setNow();
+}
+
+function deleteCall(id) {
+  if (!confirm('Remove this call?')) return;
+  calls = calls.filter(function(c){return c.id!==id;});
+  save(); populateMonths(); render();
+  setSyncStatus('syncing');
+  syncToSheet('delete', 'calls', {id: id}).then(function(ok) {
+    setSyncStatus(ok && SHEET_URL ? 'ok' : (SHEET_URL ? 'error' : 'nosheet'));
+  });
+}
+
+// ── RENDER ────────────────────────────────────────────────
+function render() {
+  var data = filtered();
+  renderStats(data); renderList(data); renderReport(data); renderBreakdown(data);
+  renderOvernights();
+}
+
+function renderStats(data) {
+  var req     = data.filter(function(c){return c.required;});
+  var total   = data.length;
+  var inTown  = data.filter(function(c){return c.inTown;}).length;
+  var inTownR = req.filter(function(c){return c.inTown;}).length;
+  var resp    = req.filter(function(c){return c.responded;}).length;
+  var respIT  = req.filter(function(c){return c.inTown&&c.responded;}).length;
+  var ovr     = req.length ? Math.round(resp/req.length*100) : 0;
+  var itr     = inTownR   ? Math.round(respIT/inTownR*100)  : 0;
+  var itp     = total     ? Math.round(inTown/total*100)     : 0;
+
+  document.getElementById('sTotal').textContent     = total;
+  document.getElementById('sActiveSub').textContent = req.length+' required response';
+  document.getElementById('sInTown').textContent    = inTown;
+  document.getElementById('sInTownPct').textContent = total ? itp+'% of total':'—';
+  document.getElementById('sResponded').textContent = resp;
+  document.getElementById('sRespondedSub').textContent = respIT+' of '+inTownR+' in-town';
+  document.getElementById('sRate').textContent = inTownR ? itr+'%':'—';
+  document.getElementById('sRate').className = 'stat-value '+(itr>=25?'good':itr>0?'warn':'');
+
+  var ob=document.getElementById('barOverall');
+  ob.style.width=Math.min(ovr,100)+'%';
+  ob.style.background=ovr>=25?'var(--green)':'var(--red)';
+  document.getElementById('barOverallPct').textContent=ovr+'%';
+  document.getElementById('barOverallPct').style.color=ovr>=25?'var(--green)':'var(--red)';
+
+  var ib=document.getElementById('barInTown');
+  ib.style.width=Math.min(itr,100)+'%';
+  ib.style.background=itr>=25?'var(--green)':'var(--amber)';
+  document.getElementById('barInTownPct').textContent=itr+'%';
+  document.getElementById('barInTownPct').style.color=itr>=25?'var(--green)':'var(--amber)';
+}
+
+function renderList(data) {
+  var el=document.getElementById('callList');
+  if (!data.length){
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">📟</div>No calls logged yet.<br>Fill out the form and hit LOG CALL.</div>';
+    return;
+  }
+  var html='';
+  data.forEach(function(c){
+    var dt=new Date(c.datetime);
+    var ds=dt.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    var ts=dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    var rc,sc,st;
+    if (!c.required)      {rc='r-notrequired';sc='s-nr'; st='🔵 N/R';}
+    else if (c.responded) {rc='r-responded';  sc='s-yes';st='✅ Yes';}
+    else if (c.inTown)    {rc='r-missed';     sc='s-no'; st='❌ Missed';}
+    else                  {rc='r-out';        sc='s-out';st='— Out';}
+    var lc=c.inTown?'loc-in':'loc-out';
+    var lt=c.inTown?'🏠 In Town':'✈️ Out';
+    var sn=c.notes?c.notes.slice(0,55)+(c.notes.length>55?'…':''):c.callType;
+    if (c.reason) sn+=' · '+c.reason;
+    html+='<div class="call-row '+rc+'">'
+      +'<div class="cr-date">'+ds+'<br>'+ts+'</div>'
+      +'<div class="cr-main"><div class="cr-type">'+esc(c.callType)+'</div><div class="cr-dispatch">'+esc(sn)+'</div></div>'
+      +'<div class="cr-location '+lc+'">'+lt+'</div>'
+      +'<div class="cr-status '+sc+'">'+st+'</div>'
+      +'<button class="del-btn" onclick="deleteCall('+c.id+')">✕</button>'
+      +'</div>';
+  });
+  el.innerHTML=html;
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function renderReport(data) {
+  var req    = data.filter(function(c){return c.required;});
+  var total  = data.length;
+  var inTown = data.filter(function(c){return c.inTown;}).length;
+  var inTR   = req.filter(function(c){return c.inTown;}).length;
+  var resp   = req.filter(function(c){return c.responded;}).length;
+  var respIT = req.filter(function(c){return c.inTown&&c.responded;}).length;
+  var ovr    = req.length ? Math.round(resp/req.length*100):0;
+  var itr    = inTR       ? Math.round(respIT/inTR*100):0;
+  var itp    = total      ? Math.round(inTown/total*100):0;
+  var nr     = data.filter(function(c){return !c.required;}).length;
+  var period = activeMonth==='all'?'ALL TIME'
+    :new Date(activeMonth+'-01').toLocaleDateString('en-US',{month:'long',year:'numeric'}).toUpperCase();
+
+  if (!total){document.getElementById('reportText').textContent='Log some calls to generate your summary...';return;}
+
+  var d='─'.repeat(44);
+
+  // Call type breakdown counts
+  var typeCounts={};
+  data.filter(function(c){return c.required;}).forEach(function(c){
+    typeCounts[c.callType]=(typeCounts[c.callType]||0)+1;
+  });
+  var topTypes=Object.entries(typeCounts).sort(function(a,b){return b[1]-a[1];}).slice(0,5);
+
+  // Day of week breakdown
+  var DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var dowCounts=[0,0,0,0,0,0,0];
+  data.filter(function(c){return c.required;}).forEach(function(c){
+    dowCounts[new Date(c.datetime).getDay()]++;
+  });
+  var peakDow=dowCounts.indexOf(Math.max.apply(null,dowCounts));
+
+  // Peak hour
+  var hrCounts=new Array(24).fill(0);
+  data.filter(function(c){return c.required;}).forEach(function(c){
+    hrCounts[new Date(c.datetime).getHours()]++;
+  });
+  var peakHr=hrCounts.indexOf(Math.max.apply(null,hrCounts));
+  var peakHrLbl=peakHr===0?'12am':peakHr<12?peakHr+'am':peakHr===12?'12pm':(peakHr-12)+'pm';
+
+  // Overnights for period
+  var ovMo = activeMonth==='all' ? overnights : overnights.filter(function(o){return o.date.startsWith(activeMonth);});
+
+  var txt=
+     'RESPONSE ACTIVITY SUMMARY — '+period+'\n'+d+'\n\n'
+    +'DISPATCH OVERVIEW\n'
+    +'  Total calls dispatched:       '+total+'\n'
+    +'  Required response:            '+req.length+'\n'
+    +'  Informational / FYI only:     '+nr+'\n\n'
+    +'AVAILABILITY\n'
+    +'  Calls while in town:          '+inTown+' of '+total+' ('+itp+'%)\n'
+    +'  Calls while out of town:      '+(total-inTown)+' of '+total+' ('+(100-itp)+'%)\n\n'
+    +'RESPONSE RATES\n'
+    +'  Overall response rate:        '+ovr+'% ('+resp+' of '+req.length+' required calls)\n'
+    +'  In-town response rate:        '+itr+'% ('+respIT+' of '+inTR+' in-town required calls)\n'
+    +'  Minimum required:             25%\n'
+    +'  Status:                       '+(itr>=25?'✅ Above minimum':'⚠️ Below minimum')+'\n\n'
+    +d+'\n'
+    +'CALL PATTERNS\n'
+    +'  Busiest day of week:          '+DAYS[peakDow]+' ('+dowCounts[peakDow]+' calls)\n'
+    +'  Peak hour:                    '+peakHrLbl+' ('+hrCounts[peakHr]+' calls)\n\n'
+    +'TOP CALL TYPES (required response)\n'
+    +topTypes.map(function(e,i){
+      return '  '+(i+1)+'. '+(e[0]+'                          ').slice(0,28)+e[1]+' call'+(e[1]>1?'s':'');
+    }).join('\n')+'\n\n'
+    +d+'\n'
+    +'OVERNIGHT COVERAGE\n'
+    +'  Nights volunteered:           '+ovMo.length+'\n'
+    +'  Nights with active calls:     '+ovMo.filter(function(o){return o.hadCalls;}).length+'\n'
+    +'  Total hours covered:          '+Math.round(ovMo.reduce(function(acc,o){return acc+calcOvHours(o);},0))+'h\n\n'
+    +d+'\n'
+    +'Generated: '+new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+  document.getElementById('reportText').textContent=txt;
+}
+
+function renderBreakdown(data) {
+  var el=document.getElementById('breakdownTable');
+  if (!data.length){el.innerHTML='<div style="color:var(--muted);font-family:\'IBM Plex Mono\',monospace;font-size:11px;">No data yet.</div>';return;}
+  var counts={};
+  data.forEach(function(c){
+    if (!counts[c.callType]) counts[c.callType]={total:0,responded:0,nr:0};
+    counts[c.callType].total++;
+    if (c.responded) counts[c.callType].responded++;
+    if (!c.required) counts[c.callType].nr++;
+  });
+  var rows=Object.entries(counts).sort(function(a,b){return b[1].total-a[1].total;}).map(function(e){
+    var type=e[0],s=e[1];
+    var req=s.total-s.nr;
+    var pct=req?Math.round(s.responded/req*100):null;
+    var bar=pct!==null?'█'.repeat(Math.round(pct/10))+'░'.repeat(10-Math.round(pct/10)):'──────────';
+    return (type+'                        ').slice(0,24)+String(s.total).padStart(3)+' calls  '+bar+' '+(pct!==null?pct+'%':'N/R');
+  }).join('\n');
+  el.innerHTML='<pre style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#CCC;line-height:1.9;background:var(--surface2);padding:12px;border-radius:5px;border:1px solid var(--border);">'+rows+'</pre>';
+}
+
+// ── OVERNIGHT STATE ─────────────────────────────────────
+var overnights = JSON.parse(localStorage.getItem('fpfd_overnights_v1') || '[]');
+var selOvCall = null;
+
+function saveOvernights() { localStorage.setItem('fpfd_overnights_v1', JSON.stringify(overnights)); }
+
+function setOvCall(v) {
+  selOvCall = v;
+  document.getElementById('ovCallYes').className = 'rbtn'+(v==='yes'?' sel-green':'');
+  document.getElementById('ovCallNo').className  = 'rbtn'+(v==='no' ?' sel-amber':'');
+}
+
+function logOvernight() {
+  var date  = document.getElementById('ovDate').value;
+  var start = document.getElementById('ovStart').value;
+  var end   = document.getElementById('ovEnd').value;
+  var notes = document.getElementById('ovNotes').value.trim();
+  var ovErr = document.getElementById('ovErr');
+
+  if (!date)  { ovErr.textContent='⚠ Please select a date.'; ovErr.style.display='block'; return; }
+  if (!start) { ovErr.textContent='⚠ Please set a start time.'; ovErr.style.display='block'; return; }
+  if (!end)   { ovErr.textContent='⚠ Please set an end time.'; ovErr.style.display='block'; return; }
+  if (selOvCall===null){ ovErr.textContent='⚠ Were there any calls that night?'; ovErr.style.display='block'; return; }
+
+  overnights.unshift({ id: Date.now(), date: date, start: start, end: end, hadCalls: selOvCall==='yes', notes: notes });
+  saveOvernights();
+
+  // reset
+  ovErr.style.display='none';
+  document.getElementById('ovDate').value='';
+  document.getElementById('ovNotes').value='';
+  selOvCall=null;
+  document.getElementById('ovCallYes').className='rbtn';
+  document.getElementById('ovCallNo').className='rbtn';
+
+  var btn=document.getElementById('ovSubmit');
+  btn.textContent='✓ LOGGED!'; btn.style.background='var(--green)';
+  setTimeout(function(){btn.textContent='+ LOG NIGHT';btn.style.background='var(--red)';},1600);
+
+  setSyncStatus('syncing');
+  syncToSheet('insert', 'overnights', overnights[0]).then(function(ok) {
+    setSyncStatus(ok && SHEET_URL ? 'ok' : (SHEET_URL ? 'error' : 'nosheet'));
+  });
+  renderOvernights();
+}
+
+function deleteOvernight(id) {
+  if (!confirm('Remove this overnight?')) return;
+  overnights = overnights.filter(function(o){return o.id!==id;});
+  saveOvernights(); renderOvernights();
+  setSyncStatus('syncing');
+  syncToSheet('delete', 'overnights', {id: id}).then(function(ok) {
+    setSyncStatus(ok && SHEET_URL ? 'ok' : (SHEET_URL ? 'error' : 'nosheet'));
+  });
+}
+
+// ── OVERNIGHT HELPERS ────────────────────────────────────
+// Google Sheets may return times as full Date strings like
+// "Sat Dec 30 1899 22:00:00 GMT-0500" — extract HH:MM safely
+function safeTime(val) {
+  if (!val) return '00:00';
+  var s = String(val);
+  // Already clean HH:MM format
+  if (/^\d{1,2}:\d{2}$/.test(s.trim())) return s.trim();
+  // Extract HH:MM from a full date string
+  var m = s.match(/(\d{1,2}):(\d{2}):\d{2}/);
+  if (m) return ('0'+m[1]).slice(-2)+':'+m[2];
+  return '00:00';
+}
+
+// Google Sheets may return date as full date string — extract YYYY-MM-DD
+function safeDate(val) {
+  if (!val) return '';
+  var s = String(val).trim();
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Try parsing as a date and reformatting
+  var d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    var p = function(n){return ('0'+n).slice(-2);};
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+  }
+  return s;
+}
+
+function calcOvHours(o) {
+  var st = safeTime(o.start), en = safeTime(o.end);
+  var sp = st.split(':'), ep = en.split(':');
+  var sh = parseInt(sp[0])||0, sm = parseInt(sp[1])||0;
+  var eh = parseInt(ep[0])||0, em = parseInt(ep[1])||0;
+  var startMins = sh*60+sm, endMins = eh*60+em;
+  // Overnight: end is next morning so end < start
+  if (endMins <= startMins) endMins += 24*60;
+  return (endMins - startMins) / 60;
+}
+
+function renderOvernights() {
+  var mo = activeMonth==='all' ? overnights : overnights.filter(function(o){return o.date.startsWith(activeMonth);});
+  var total     = mo.length;
+  var withCalls = mo.filter(function(o){return o.hadCalls;}).length;
+  var hrs       = mo.reduce(function(acc,o){return acc + calcOvHours(o);}, 0);
+  var atTotal   = overnights.length;
+
+  var statsEl = document.getElementById('ovStats');
+  statsEl.innerHTML =
+    '<div class="ov-stat"><div class="ov-stat-num">'+total+'</div><div class="ov-stat-lbl">Nights Covered</div></div>'
+   +'<div class="ov-stat"><div class="ov-stat-num">'+withCalls+'</div><div class="ov-stat-lbl">Nights w/ Calls</div></div>'
+   +'<div class="ov-stat"><div class="ov-stat-num">'+Math.round(hrs)+'</div><div class="ov-stat-lbl">Hours Covered</div></div>'
+   +'<div class="ov-stat"><div class="ov-stat-num">'+atTotal+'</div><div class="ov-stat-lbl">All-Time Nights</div></div>';
+
+  var listEl = document.getElementById('overnightList');
+  if (!mo.length) {
+    listEl.innerHTML='<div class="empty-state"><div class="empty-icon">🌙</div>No overnights logged yet.</div>';
+    return;
+  }
+
+  var html='';
+  mo.forEach(function(o){
+    var dateStr = safeDate(o.date);
+    var d = dateStr ? new Date(dateStr+'T12:00:00') : null;
+    var ds = (d && !isNaN(d.getTime()))
+      ? d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})
+      : (dateStr || 'Unknown');
+    var startDisp = safeTime(o.start);
+    var endDisp   = safeTime(o.end);
+    html += '<div class="ov-row">'
+      +'<div>'+ds+'</div>'
+      +'<div>'+startDisp+'</div>'
+      +'<div>'+endDisp+'</div>'
+      +'<div style="color:var(--text)">'+esc(o.notes||'—')+'</div>'
+      +'<div style="text-align:center">'+(o.hadCalls?'<span style="color:var(--green)">✅ Yes</span>':'<span style="color:var(--muted)">😴 No</span>')+'</div>'
+      +'<button class="del-btn" onclick="deleteOvernight('+o.id+')">✕</button>'
+      +'</div>';
+  });
+  listEl.innerHTML = html;
+}
+
+function exportOvernights() {
+  if (!overnights.length){alert('No overnights to export.');return;}
+  var rows=['Date,Start,End,HadCalls,Notes'];
+  overnights.forEach(function(o){
+    rows.push([o.date,o.start,o.end,o.hadCalls?'Yes':'No',o.notes||'']
+      .map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(','));
+  });
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.download='fpfd-overnights.csv'; a.click();
+}
+
+// ── ANALYTICS RENDERERS ──────────────────────────────────
+
+function renderAnalytics() {
+  var data = filtered();
+  renderStreaks(data);
+  renderTrendChart(data);
+  renderHeatmap(data);
+  renderDOWChart(data);
+  renderHourChart(data);
+}
+
+function renderStreaks(data) {
+  var req = data.filter(function(c){return c.required && c.inTown;});
+  // sort ascending
+  req = req.slice().sort(function(a,b){return a.datetime<b.datetime?-1:1;});
+
+  var cur=0, best=0, tmp=0;
+  req.forEach(function(c){
+    if (c.responded){tmp++; if(tmp>best)best=tmp;}
+    else tmp=0;
+  });
+  // current streak = tail of array
+  for (var i=req.length-1;i>=0;i--){
+    if(req[i].responded) cur++;
+    else break;
+  }
+
+  var allReq = calls.filter(function(c){return c.required&&c.inTown;})
+    .sort(function(a,b){return a.datetime<b.datetime?-1:1;});
+  var allBest=0, allTmp=0;
+  allReq.forEach(function(c){
+    if(c.responded){allTmp++;if(allTmp>allBest)allBest=allTmp;}
+    else allTmp=0;
+  });
+
+  var totalIT = data.filter(function(c){return c.required&&c.inTown;}).length;
+  var respIT  = data.filter(function(c){return c.required&&c.inTown&&c.responded;}).length;
+  var itr = totalIT ? Math.round(respIT/totalIT*100) : 0;
+
+  document.getElementById('streakRow').innerHTML =
+    '<div class="streak-box"><div class="streak-num" style="color:var(--green)">'+cur+'</div><div class="streak-lbl">Current Streak<br>(in-town resp.)</div></div>'
+   +'<div class="streak-box"><div class="streak-num" style="color:var(--amber)">'+best+'</div><div class="streak-lbl">Best Streak<br>(this period)</div></div>'
+   +'<div class="streak-box"><div class="streak-num" style="color:var(--blue)">'+allBest+'</div><div class="streak-lbl">All-Time Best<br>Streak</div></div>'
+   +'<div class="streak-box"><div class="streak-num '+(itr>=25?'good':itr>0?'warn':'bad')+'">'+itr+'%</div><div class="streak-lbl">In-Town Rate<br>(this period)</div></div>';
+}
+
+function renderTrendChart(data) {
+  var canvas = document.getElementById('trendCanvas');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth || 700;
+  canvas.height = 90;
+  var W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  // Build 90 daily points working backward from today
+  var pts = [];
+  var today = new Date(); today.setHours(23,59,59,999);
+  for (var d=89; d>=0; d--) {
+    var day = new Date(today);
+    day.setDate(today.getDate()-d);
+    var dayStr = day.toISOString().slice(0,10);
+    // window: calls in last 30 days up to this day
+    var winEnd = new Date(day); winEnd.setHours(23,59,59,999);
+    var winStart = new Date(winEnd); winStart.setDate(winStart.getDate()-29);
+    var winStartStr = winStart.toISOString().slice(0,16);
+    var winEndStr   = winEnd.toISOString().slice(0,16);
+    var win = calls.filter(function(c){return c.required && c.datetime>=winStartStr && c.datetime<=winEndStr;});
+    var winIT = win.filter(function(c){return c.inTown;});
+    pts.push({
+      ovr:  win.length    ? Math.round(win.filter(function(c){return c.responded;}).length/win.length*100) : null,
+      itr:  winIT.length  ? Math.round(winIT.filter(function(c){return c.responded;}).length/winIT.length*100) : null
+    });
+  }
+
+  var pad=8;
+  function yPos(pct){ return H-pad - (pct/100)*(H-pad*2); }
+  function xPos(i){ return pad + (i/(pts.length-1))*(W-pad*2); }
+
+  // threshold line
+  ctx.beginPath(); ctx.strokeStyle='rgba(245,166,35,0.4)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+  ctx.moveTo(pad, yPos(25)); ctx.lineTo(W-pad, yPos(25));
+  ctx.stroke(); ctx.setLineDash([]);
+
+  // draw lines
+  function drawLine(arr, color, key) {
+    ctx.beginPath(); ctx.strokeStyle=color; ctx.lineWidth=2;
+    var started=false;
+    arr.forEach(function(pt,i){
+      if(pt[key]===null) return;
+      var x=xPos(i), y=yPos(pt[key]);
+      if(!started){ctx.moveTo(x,y);started=true;}
+      else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  }
+  drawLine(pts,'rgba(74,158,255,0.8)','ovr');
+  drawLine(pts,'rgba(39,174,96,0.9)','itr');
+
+  // axis labels
+  ctx.fillStyle='rgba(102,102,102,0.8)'; ctx.font='8px IBM Plex Mono';
+  ctx.fillText('0%',0,H-pad); ctx.fillText('50%',0,yPos(50)); ctx.fillText('100%',0,yPos(100)+4);
+  ctx.fillText('-90d',pad,H); ctx.fillText('today',W-30,H);
+}
+
+function renderHeatmap(data) {
+  var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  // count calls per day-of-week x hour
+  var grid = {}; // key: "dow-hr" => {total,responded,missed,out}
+  data.filter(function(c){return c.required;}).forEach(function(c){
+    var dt=new Date(c.datetime);
+    var dow=dt.getDay(), hr=dt.getHours();
+    var key=dow+'-'+hr;
+    if(!grid[key]) grid[key]={total:0,responded:0,missed:0,out:0};
+    grid[key].total++;
+    if(c.responded) grid[key].responded++;
+    else if(c.inTown) grid[key].missed++;
+    else grid[key].out++;
+  });
+
+  var maxVal=0;
+  Object.values(grid).forEach(function(v){if(v.total>maxVal)maxVal=v.total;});
+
+  // Hour labels
+  var hlEl=document.getElementById('heatHours');
+  hlEl.innerHTML='<div></div>';
+  for(var h=0;h<24;h++){
+    var lbl = h===0?'12a':h<12?h+'a':h===12?'12p':(h-12)+'p';
+    hlEl.innerHTML+='<div>'+lbl+'</div>';
+  }
+
+  var gridEl=document.getElementById('heatmapGrid');
+  var html='';
+  for(var dow=0;dow<7;dow++){
+    html+='<div class="heatmap-row"><div class="hm-label">'+DAYS[dow]+'</div>';
+    for(var hr=0;hr<24;hr++){
+      var key=dow+'-'+hr;
+      var v=grid[key]||{total:0,responded:0,missed:0,out:0};
+      var bg='background:var(--surface2)';
+      if(v.total>0){
+        var intensity=Math.max(0.15, v.total/Math.max(maxVal,1));
+        if(v.responded===v.total) bg='background:rgba(39,174,96,'+intensity+')';
+        else if(v.out===v.total)  bg='background:rgba(60,60,60,'+(intensity+0.1)+')';
+        else if(v.missed>0)       bg='background:rgba(245,166,35,'+intensity+')';
+        else                      bg='background:rgba(212,43,43,'+intensity+')';
+      }
+      var tip=v.total?v.total+' call'+(v.total>1?'s':'')+(v.responded?' · '+v.responded+' resp':'')+(v.missed?' · '+v.missed+' missed in town':'')+(v.out?' · '+v.out+' out of town':''):'No calls';
+      html+='<div class="hm-cell" style="'+bg+'"><span class="hm-tip">'+DAYS[dow]+' '+hr+':00 — '+tip+'</span></div>';
+    }
+    html+='</div>';
+  }
+  gridEl.innerHTML=html;
+}
+
+function renderDOWChart(data) {
+  var DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var counts=DAYS.map(function(){return {total:0,responded:0};});
+  data.filter(function(c){return c.required;}).forEach(function(c){
+    var dow=new Date(c.datetime).getDay();
+    counts[dow].total++;
+    if(c.responded) counts[dow].responded++;
+  });
+  var max=Math.max.apply(null,counts.map(function(x){return x.total;})) || 1;
+  var html='<div class="bar-chart">';
+  counts.forEach(function(v,i){
+    var pct=Math.round(v.total/max*100);
+    var rpct=v.total?Math.round(v.responded/v.total*100):0;
+    html+='<div class="bar-row">'
+      +'<div class="bar-label">'+DAYS[i]+'</div>'
+      +'<div class="bar-track">'
+        +'<div class="bar-fill" style="width:'+pct+'%;background:linear-gradient(90deg,var(--green) '+rpct+'%,var(--amber) '+rpct+'%)"></div>'
+      +'</div>'
+      +'<div class="bar-val">'+v.total+'</div>'
+      +'</div>';
+  });
+  html+='</div>';
+  document.getElementById('dowChart').innerHTML=html;
+}
+
+function renderHourChart(data) {
+  var counts=[];
+  for(var i=0;i<24;i++) counts.push({total:0,responded:0});
+  data.filter(function(c){return c.required;}).forEach(function(c){
+    var hr=new Date(c.datetime).getHours();
+    counts[hr].total++;
+    if(c.responded) counts[hr].responded++;
+  });
+  var max=Math.max.apply(null,counts.map(function(x){return x.total;})) || 1;
+  var html='<div class="bar-chart">';
+  counts.forEach(function(v,i){
+    var lbl=i===0?'12a':i<12?i+'a':i===12?'12p':(i-12)+'p';
+    var pct=Math.round(v.total/max*100);
+    var rpct=v.total?Math.round(v.responded/v.total*100):0;
+    html+='<div class="bar-row">'
+      +'<div class="bar-label">'+lbl+'</div>'
+      +'<div class="bar-track">'
+        +'<div class="bar-fill" style="width:'+pct+'%;background:linear-gradient(90deg,var(--green) '+rpct+'%,var(--amber) '+rpct+'%)"></div>'
+      +'</div>'
+      +'<div class="bar-val">'+v.total+'</div>'
+      +'</div>';
+  });
+  html+='</div>';
+  document.getElementById('hourChart').innerHTML=html;
+}
+
+function switchTab(name) {
+  var tabs=['log','report','analytics','overnight','codes','howto'];
+  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('active',tabs[i]===name);});
+  document.querySelectorAll('.tab-content').forEach(function(tc){tc.classList.toggle('active',tc.id==='tab-'+name);});
+  if(name==='analytics') renderAnalytics();
+  if(name==='overnight') renderOvernights();
+}
+
+function exportPDF() {
+  var data = filtered();
+  var period = activeMonth==='all' ? 'All Time'
+    : new Date(activeMonth+'-01').toLocaleDateString('en-US',{month:'long',year:'numeric'});
+
+  var req     = data.filter(function(c){return c.required;});
+  var total   = data.length;
+  var inTown  = data.filter(function(c){return c.inTown;}).length;
+  var inTR    = req.filter(function(c){return c.inTown;}).length;
+  var resp    = req.filter(function(c){return c.responded;}).length;
+  var respIT  = req.filter(function(c){return c.inTown&&c.responded;}).length;
+  var nr      = data.filter(function(c){return !c.required;}).length;
+  var ovr     = req.length ? Math.round(resp/req.length*100):0;
+  var itr     = inTR       ? Math.round(respIT/inTR*100):0;
+  var itp     = total      ? Math.round(inTown/total*100):0;
+  var DAYS    = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  // Day of week counts
+  var dowC=[0,0,0,0,0,0,0];
+  req.forEach(function(c){dowC[new Date(c.datetime).getDay()]++;});
+
+  // Hour counts
+  var hrC=new Array(24).fill(0);
+  req.forEach(function(c){hrC[new Date(c.datetime).getHours()]++;});
+
+  // Call type counts
+  var typeCounts={};
+  req.forEach(function(c){typeCounts[c.callType]=(typeCounts[c.callType]||0)+1;});
+  var typeRows=Object.entries(typeCounts).sort(function(a,b){return b[1]-a[1];});
+
+  // Overnights
+  var ovMo = activeMonth==='all' ? overnights : overnights.filter(function(o){return o.date.startsWith(activeMonth);});
+  var ovHrs = Math.round(ovMo.reduce(function(acc,o){return acc+calcOvHours(o);},0));
+
+  // Bar helper
+  function bar(val,max,color){
+    var pct=max?Math.round(val/max*100):0;
+    return '<div style="background:#1a1a1a;border-radius:3px;height:10px;width:100%;">'
+      +'<div style="background:'+color+';height:10px;border-radius:3px;width:'+pct+'%"></div></div>';
+  }
+
+  var maxDow=Math.max.apply(null,dowC)||1;
+  var maxHr=Math.max.apply(null,hrC)||1;
+
+  var dowRows='';
+  DAYS.forEach(function(d,i){
+    dowRows+='<tr><td style="padding:3px 8px 3px 0;font-size:11px;color:#999;white-space:nowrap;">'+d+'</td>'
+      +'<td style="padding:3px 0;width:100%;">'+bar(dowC[i],maxDow,'#4A9EFF')+'</td>'
+      +'<td style="padding:3px 0 3px 8px;font-size:11px;color:#ccc;text-align:right;">'+dowC[i]+'</td></tr>';
+  });
+
+  var hrLabels=['12a','1a','2a','3a','4a','5a','6a','7a','8a','9a','10a','11a','12p','1p','2p','3p','4p','5p','6p','7p','8p','9p','10p','11p'];
+  var hrRows='';
+  hrC.forEach(function(v,i){
+    hrRows+='<tr><td style="padding:2px 8px 2px 0;font-size:10px;color:#999;white-space:nowrap;">'+hrLabels[i]+'</td>'
+      +'<td style="padding:2px 0;width:100%;">'+bar(v,maxHr,'#F5A623')+'</td>'
+      +'<td style="padding:2px 0 2px 8px;font-size:10px;color:#ccc;text-align:right;">'+v+'</td></tr>';
+  });
+
+  var typeRowsHtml='';
+  typeRows.forEach(function(e){
+    typeRowsHtml+='<tr><td style="padding:3px 12px 3px 0;font-size:11px;color:#ccc;">'+e[0]+'</td>'
+      +'<td style="padding:3px 0;width:100%;">'+bar(e[1],typeRows[0][1],'#27AE60')+'</td>'
+      +'<td style="padding:3px 0 3px 8px;font-size:11px;color:#ccc;text-align:right;">'+e[1]+'</td></tr>';
+  });
+
+  var statusColor = itr>=25 ? '#27AE60' : '#F5A623';
+  var statusText  = itr>=25 ? 'Above Minimum' : 'Below Minimum';
+
+  function statRow(label,val,sub){
+    return '<tr>'
+      +'<td style="padding:6px 16px 6px 0;font-size:12px;color:#999;font-family:monospace;width:220px;">'+label+'</td>'
+      +'<td style="padding:6px 0;font-size:14px;font-weight:bold;color:#e8e8e8;font-family:monospace;">'+val+'</td>'
+      +(sub?'<td style="padding:6px 0 6px 12px;font-size:11px;color:#666;font-family:monospace;">'+sub+'</td>':'<td></td>')
+      +'</tr>';
+  }
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8">'
+    +'<title>FPFD Report — '+period+'</title>'
+    +'<style>'
+    +'  body{background:#0d0d0d;color:#e8e8e8;font-family:Arial,sans-serif;margin:0;padding:32px;}'
+    +'  h1{font-family:Impact,Arial,sans-serif;font-size:28px;letter-spacing:3px;margin:0 0 4px 0;color:#fff;}'
+    +'  h2{font-family:Impact,Arial,sans-serif;font-size:16px;letter-spacing:2px;color:#F5A623;margin:24px 0 10px 0;border-bottom:1px solid #2a2a2a;padding-bottom:6px;}'
+    +'  .period{font-family:monospace;font-size:12px;color:#666;margin-bottom:24px;}'
+    +'  .card{background:#161616;border:1px solid #2a2a2a;border-radius:8px;padding:16px;margin-bottom:16px;}'
+    +'  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}'
+    +'  .stat-box{background:#161616;border:1px solid #2a2a2a;border-radius:6px;padding:12px;text-align:center;}'
+    +'  .stat-num{font-family:Impact,Arial,sans-serif;font-size:34px;line-height:1;}'
+    +'  .stat-lbl{font-family:monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#666;margin-top:4px;}'
+    +'  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}'
+    +'  table{width:100%;border-collapse:collapse;}'
+    +'  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}'
+    +'</style></head><body>'
+
+    // Header
+    +'<h1>🚒 FPFD RESPONSE TRACKER</h1>'
+    +'<div class="period">Activity Report &nbsp;·&nbsp; '+period+' &nbsp;·&nbsp; Generated '+new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"})+"</div>"
+
+    // Top stats
+    +'<div class="stat-grid">'
+    +'<div class="stat-box"><div class="stat-num" style="color:#F5A623">'+total+'</div><div class="stat-lbl">Total Dispatches</div></div>'
+    +'<div class="stat-box"><div class="stat-num" style="color:#4A9EFF">'+inTown+'</div><div class="stat-lbl">In Town ('+itp+'%)</div></div>'
+    +'<div class="stat-box"><div class="stat-num" style="color:#27AE60">'+resp+'</div><div class="stat-lbl">Responded</div></div>'
+    +'<div class="stat-box"><div class="stat-num" style="color:'+statusColor+'">'+itr+'%</div><div class="stat-lbl">In-Town Rate</div></div>'
+    +'</div>'
+
+    // Response stats table
+    +'<div class="card"><h2>📊 RESPONSE STATISTICS</h2>'
+    +'<table>'+statRow('Total dispatches',total)
+    +statRow('Required response',req.length,nr+' informational only')
+    +statRow('Calls — in town',inTown,''+itp+'% of all calls')
+    +statRow('Calls — out of town',(total-inTown),''+(100-itp)+'% of all calls')
+    +statRow('Overall response rate',ovr+'%',resp+' of '+req.length+' required calls')
+    +statRow('In-town response rate','<span style="color:'+statusColor+'">'+itr+'%</span>',respIT+' of '+inTR+' in-town required calls')
+    +statRow('Required minimum','25%','<span style="color:'+statusColor+'">'+statusText+'</span>')
+    +'</table></div>'
+
+    // Two column section
+    +'<div class="two-col">'
+
+    // Day of week
+    +'<div class="card"><h2>📅 CALLS BY DAY OF WEEK</h2><table>'+dowRows+'</table></div>'
+
+    // Call types
+    +'<div class="card"><h2>📋 CALL TYPE BREAKDOWN</h2><table>'+(typeRowsHtml||'<tr><td style="color:#666;font-size:12px;">No data</td></tr>')+'</table></div>'
+
+    +'</div>'
+
+    // Hour chart full width
+    +'<div class="card"><h2>⏰ CALL VOLUME BY HOUR</h2>'
+    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">'
+    +hrC.map(function(v,i){
+      var pct=maxHr?Math.round(v/maxHr*100):0;
+      return '<div style="text-align:center;">'
+        +'<div style="background:#1a1a1a;border-radius:3px;height:40px;display:flex;align-items:flex-end;">'
+        +'<div style="background:#F5A623;width:100%;height:'+pct+'%;border-radius:2px;min-height:'+(v?3:0)+'px"></div></div>'
+        +'<div style="font-size:9px;color:#666;margin-top:2px;font-family:monospace;">'+hrLabels[i]+'</div>'
+        +'<div style="font-size:10px;color:#ccc;font-family:monospace;">'+v+'</div>'
+        +'</div>';
+    }).join('')
+    +'</div></div>'
+
+    // Overnight coverage
+    +'<div class="card"><h2>🌙 OVERNIGHT COVERAGE</h2>'
+    +'<table>'
+    +statRow('Nights volunteered',ovMo.length)
+    +statRow('Nights with active calls',ovMo.filter(function(o){return o.hadCalls;}).length)
+    +statRow('Total hours covered',ovHrs+'h')
+    +'</table>'
+    +(ovMo.length ? '<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:4px;">'
+      +ovMo.map(function(o){
+        var dstr=safeDate(o.date); var d=dstr?new Date(dstr+'T12:00:00'):null;
+        var dlbl=(d&&!isNaN(d.getTime()))?d.toLocaleDateString('en-US',{month:'short',day:'numeric'}):(dstr||'?');
+        return '<div style="background:'+(o.hadCalls?'rgba(39,174,96,0.2)':'rgba(74,158,255,0.15)')+';border:1px solid '+(o.hadCalls?'#27AE60':'#4A9EFF')+';border-radius:4px;padding:3px 7px;font-family:monospace;font-size:10px;color:'+(o.hadCalls?'#27AE60':'#4A9EFF')+';">'
+          +dlbl+'</div>';
+      }).join('')+'</div>' : '')
+    +'</div>'
+
+    +'</body></html>';
+
+  var win = window.open('','_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(function(){ win.print(); }, 400);
+}
+
+function toggleSettings() {
+  var p = document.getElementById('settingsPanel');
+  p.style.display = p.style.display==='none' ? 'block' : 'none';
+  if (p.style.display==='block') {
+    document.getElementById('sheetUrlInput').value = SHEET_URL;
+    document.getElementById('sheetUrlStatus').textContent = SHEET_URL ? 'Current: ' + SHEET_URL : 'No URL saved yet.';
+  }
+}
+
+function saveSheetURL() {
+  var url = document.getElementById('sheetUrlInput').value.trim();
+  if (!url) { document.getElementById('sheetUrlStatus').textContent = '⚠ Please enter a URL.'; return; }
+  if (!url.startsWith('https://script.google.com')) {
+    document.getElementById('sheetUrlStatus').textContent = '⚠ URL should start with https://script.google.com'; return;
+  }
+  setSheetURL(url);
+  document.getElementById('sheetUrlStatus').textContent = '✓ Saved! Pulling data from sheet...';
+  loadFromSheet().then(function(ok) {
+    document.getElementById('sheetUrlStatus').textContent = ok
+      ? '✓ Connected and synced successfully.'
+      : '⚠ URL saved but could not connect. Check that the script is deployed as a web app with access set to Anyone.';
+  });
+}
+
+function exportCSV() {
+  var data=filtered();
+  if (!data.length){alert('No calls to export.');return;}
+  var rows=['DateTime,CallType,InTown,ResponseRequired,Responded,Reason,Notes'];
+  data.forEach(function(c){
+    rows.push([c.datetime,c.callType,c.inTown?'Yes':'No',c.required?'Yes':'No',
+      c.responded===null?'N/A':c.responded?'Yes':'No',c.reason||'',c.notes||'']
+      .map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(','));
+  });
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.download='fpfd-calls-'+activeMonth+'.csv';
+  a.click();
+}
+</script>
+</body>
+</html>
