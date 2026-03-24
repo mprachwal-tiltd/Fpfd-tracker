@@ -214,6 +214,54 @@
   .ov-cal-day.covered{background:rgba(74,158,255,0.2);border-color:var(--blue);color:var(--blue);}
   .ov-cal-day.had-call{background:rgba(39,174,96,0.2);border-color:var(--green);color:var(--green);}
 
+  /* CALL DETAIL MODAL */
+  #callModal{
+    position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;
+    display:flex;align-items:flex-end;justify-content:center;
+    backdrop-filter:blur(3px);
+    animation:fadeIn 0.15s ease;
+  }
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+  .modal-sheet{
+    background:var(--surface);
+    border-radius:16px 16px 0 0;
+    border:1px solid var(--border);
+    border-bottom:none;
+    width:100%;
+    max-width:680px;
+    max-height:88vh;
+    overflow-y:auto;
+    padding:0 0 32px 0;
+    animation:slideUp 0.2s ease;
+  }
+  @keyframes slideUp{from{transform:translateY(60px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  .modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0;}
+  .modal-header{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    padding:16px 20px 12px;
+    border-bottom:1px solid var(--border);
+  }
+  .modal-call-type{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--text);}
+  .modal-datetime{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);margin-top:3px;}
+  .modal-close{background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;flex-shrink:0;}
+  .modal-section{padding:14px 20px 0;}
+  .modal-section-title{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+  .modal-dispatch{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#CCC;line-height:1.6;background:var(--surface2);border-radius:6px;padding:10px 12px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-word;}
+  .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 20px 0;}
+  .modal-fact{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;}
+  .modal-fact-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+  .modal-fact-val{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;}
+  .modal-notes{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#CCC;line-height:1.6;background:var(--surface2);border-radius:6px;padding:10px 12px;border:1px solid var(--border);}
+  .modal-delete-btn{
+    display:block;margin:20px 20px 0;width:calc(100% - 40px);
+    background:rgba(212,43,43,0.12);border:1px solid var(--red);
+    color:var(--red);border-radius:6px;padding:10px;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;
+    letter-spacing:1px;cursor:pointer;transition:background 0.15s;
+  }
+  .modal-delete-btn:hover{background:rgba(212,43,43,0.22);}
+  .call-row{cursor:pointer;}
+
   @media(max-width:880px){
     .stats-grid{grid-template-columns:repeat(2,1fr);}
     .main{grid-template-columns:1fr;}
@@ -394,13 +442,19 @@
         <div class="form-group" id="reasonGroup" style="display:none;margin-top:8px;">
           <label class="form-label">Reason (optional)</label>
           <select class="form-select" id="fReason">
-            <option value="">Select...</option>
+            <option value="">Select reason...</option>
             <option>Out of town</option>
-            <option>Work</option>
+            <option>Work — on shift</option>
+            <option>Work — commuting</option>
             <option>Asleep</option>
-            <option>Not my unit</option>
-            <option>Arrived covered</option>
-            <option>Medical / personal</option>
+            <option>Medical</option>
+            <option>Child care</option>
+            <option>Didn't receive notification</option>
+            <option>Phone off / no signal</option>
+            <option>Already on another call</option>
+            <option>Equipment not available</option>
+            <option>Weather / road conditions</option>
+            <option>Personal commitment</option>
             <option>Other</option>
           </select>
         </div>
@@ -750,6 +804,56 @@ coverage hours.</div>
   </div><!-- end list-panel -->
 </div><!-- end main -->
 
+<!-- CALL DETAIL MODAL -->
+<div id="callModal" style="display:none" onclick="closeModal(event)">
+  <div class="modal-sheet" id="modalSheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div>
+        <div class="modal-call-type" id="modalCallType"></div>
+        <div class="modal-datetime" id="modalDatetime"></div>
+      </div>
+      <button class="modal-close" onclick="closeModalBtn()">✕</button>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-section-title">DISPATCH TEXT</div>
+      <div class="modal-dispatch" id="modalDispatch"></div>
+    </div>
+
+    <div class="modal-grid">
+      <div class="modal-fact">
+        <div class="modal-fact-label">LOCATION</div>
+        <div class="modal-fact-val" id="modalLocation"></div>
+      </div>
+      <div class="modal-fact">
+        <div class="modal-fact-label">RESPONSE REQUIRED</div>
+        <div class="modal-fact-val" id="modalRequired"></div>
+      </div>
+      <div class="modal-fact">
+        <div class="modal-fact-label">RESPONDED</div>
+        <div class="modal-fact-val" id="modalResponded"></div>
+      </div>
+      <div class="modal-fact" id="modalReasonWrap">
+        <div class="modal-fact-label">REASON</div>
+        <div class="modal-fact-val" id="modalReason"></div>
+      </div>
+    </div>
+
+    <div class="modal-section" id="modalNotesWrap">
+      <div class="modal-section-title">NOTES</div>
+      <div class="modal-notes" id="modalNotes"></div>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-section-title">INCIDENT NUMBER</div>
+      <div class="modal-notes" id="modalIncident"></div>
+    </div>
+
+    <button class="modal-delete-btn" id="modalDeleteBtn">🗑 Delete This Call</button>
+  </div>
+</div>
+
 <script>
 // ── GOOGLE SHEETS SYNC ───────────────────────────────────
 var SHEET_URL = localStorage.getItem('fpfd_sheet_url') || '';
@@ -782,7 +886,7 @@ function loadFromSheet() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.calls)      { calls      = sanitizeCalls(data.calls); localStorage.setItem('fpfd_v4', JSON.stringify(calls)); }
-      if (data.overnights) { overnights = data.overnights; localStorage.setItem('fpfd_overnights_v1', JSON.stringify(overnights)); }
+      if (data.overnights) { overnights = sanitizeOvernights(data.overnights); localStorage.setItem('fpfd_overnights_v1', JSON.stringify(overnights)); }
       setSyncStatus('ok');
       populateMonths(); render();
       return true;
@@ -818,11 +922,40 @@ function toBool(v) {
   return null; // null = N/A (informational call, no response required)
 }
 
+// Normalize any datetime format to YYYY-MM-DDTHH:MM
+// Handles: "2026-03-18T08:05", "3/18/2026 8:05", "03/18/26 08:05",
+//          full Date strings, Sheets Date objects
+function safeDateTime(val) {
+  if (!val) return '';
+  var s = String(val).trim();
+  // Already correct format
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return s.slice(0,16);
+  // Sheets Date object
+  if (val instanceof Date && !isNaN(val.getTime())) {
+    var p = function(n){return ('0'+n).slice(-2);};
+    return val.getFullYear()+'-'+p(val.getMonth()+1)+'-'+p(val.getDate())+'T'+p(val.getHours())+':'+p(val.getMinutes());
+  }
+  // MM/DD/YYYY HH:MM or MM/DD/YY HH:MM
+  var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})/);
+  if (m) {
+    var p = function(n){return ('0'+n).slice(-2);};
+    var yr = m[3].length===2 ? 2000+parseInt(m[3]) : parseInt(m[3]);
+    return yr+'-'+p(parseInt(m[1]))+'-'+p(parseInt(m[2]))+'T'+p(parseInt(m[4]))+':'+p(parseInt(m[5]));
+  }
+  // Try generic Date parse as last resort
+  var d = new Date(s);
+  if (!isNaN(d.getTime()) && d.getFullYear() > 1970) {
+    var p = function(n){return ('0'+n).slice(-2);};
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());
+  }
+  return s; // return as-is if nothing works
+}
+
 function sanitizeCalls(arr) {
   return (arr || []).map(function(c) {
     return {
       id:        c.id,
-      datetime:  String(c.datetime  || ''),
+      datetime:  safeDateTime(c.datetime),
       callType:  String(c.callType  || ''),
       inTown:    toBool(c.inTown)   === true,
       required:  toBool(c.required) === true,
@@ -830,6 +963,26 @@ function sanitizeCalls(arr) {
       reason:    String(c.reason    || ''),
       notes:     String(c.notes     || '')
     };
+  });
+}
+
+// Sanitize overnight records — fix date/time fields that Sheets may have mangled
+function sanitizeOvernights(arr) {
+  return (arr || []).map(function(o) {
+    var cleanDate = safeDate(o.date);
+    var cleanStart = safeTime(o.start);
+    var cleanEnd   = safeTime(o.end);
+    return {
+      id:       o.id,
+      date:     cleanDate,
+      start:    cleanStart,
+      end:      cleanEnd,
+      hadCalls: toBool(o.hadCalls) === true,
+      notes:    String(o.notes || '')
+    };
+  }).filter(function(o) {
+    // Drop records with unparseable dates entirely — they're corrupt
+    return o.date && /^\d{4}-\d{2}-\d{2}$/.test(o.date);
   });
 }
 
@@ -898,23 +1051,40 @@ function populateMonths() {
   var sel = document.getElementById('monthSelect');
   while (sel.options.length > 1) sel.remove(1);
   var months = {};
-  calls.forEach(function(c){months[c.datetime.slice(0,7)]=1;});
+  // Add months from calls
+  calls.forEach(function(c){
+    var dt = safeDateTime(c.datetime);
+    var m = dt ? dt.slice(0,7) : '';
+    if (/^\d{4}-\d{2}$/.test(m)) months[m] = 1;
+  });
+  // Add months from overnights (already sanitized so date is clean YYYY-MM-DD)
+  overnights.forEach(function(o){
+    var m = o.date ? o.date.slice(0,7) : '';
+    if (/^\d{4}-\d{2}$/.test(m)) months[m] = 1;
+  });
+  // Always include current month
   var now = new Date();
   var p = function(n){return String(n).padStart(2,'0');};
   months[now.getFullYear()+'-'+p(now.getMonth()+1)] = 1;
   Object.keys(months).sort().reverse().forEach(function(m){
-    var o = document.createElement('option');
-    o.value = m;
+    var opt = document.createElement('option');
+    opt.value = m;
     var pts = m.split('-');
-    o.textContent = new Date(parseInt(pts[0]),parseInt(pts[1])-1,1)
-      .toLocaleDateString('en-US',{month:'long',year:'numeric'}).toUpperCase();
-    sel.appendChild(o);
+    var d = new Date(parseInt(pts[0]), parseInt(pts[1])-1, 1);
+    opt.textContent = isNaN(d.getTime()) ? m : d.toLocaleDateString('en-US',{month:'long',year:'numeric'}).toUpperCase();
+    sel.appendChild(opt);
   });
-  sel.value = activeMonth;
+  sel.value = (months[activeMonth] || activeMonth==='all') ? activeMonth : 'all';
 }
 
 function filterByMonth() { activeMonth = document.getElementById('monthSelect').value; render(); }
-function filtered() { return activeMonth==='all' ? calls : calls.filter(function(c){return c.datetime.startsWith(activeMonth);}); }
+function filtered() {
+  if (activeMonth==='all') return calls;
+  return calls.filter(function(c){
+    var dt = safeDateTime(c.datetime);
+    return dt && dt.startsWith(activeMonth);
+  });
+}
 
 // ── FORM SETTERS ──────────────────────────────────────────
 function setLoc(v) {
@@ -1337,12 +1507,12 @@ function renderList(data) {
     var lt=c.inTown?'🏠 In Town':'✈️ Out';
     var sn=c.notes?c.notes.slice(0,55)+(c.notes.length>55?'…':''):c.callType;
     if (c.reason) sn+=' · '+c.reason;
-    html+='<div class="call-row '+rc+'">'
+    html+='<div class="call-row '+rc+'" onclick="openCallModal('+c.id+')">'
       +'<div class="cr-date">'+ds+'<br>'+ts+'</div>'
       +'<div class="cr-main"><div class="cr-type">'+esc(c.callType)+'</div><div class="cr-dispatch">'+esc(sn)+'</div></div>'
       +'<div class="cr-location '+lc+'">'+lt+'</div>'
       +'<div class="cr-status '+sc+'">'+st+'</div>'
-      +'<button class="del-btn" onclick="deleteCall('+c.id+')">✕</button>'
+      +'<button class="del-btn" onclick="event.stopPropagation();deleteCall('+c.id+')">✕</button>'
       +'</div>';
   });
   el.innerHTML=html;
@@ -1392,7 +1562,7 @@ function renderReport(data) {
   var peakHrLbl=peakHr===0?'12am':peakHr<12?peakHr+'am':peakHr===12?'12pm':(peakHr-12)+'pm';
 
   // Overnights for period
-  var ovMo = activeMonth==='all' ? overnights : overnights.filter(function(o){return o.date.startsWith(activeMonth);});
+  var ovMo = activeMonth==='all' ? overnights : overnights.filter(function(o){var d=safeDate(o.date);return d && d.startsWith(activeMonth);});
 
   var txt=
      'RESPONSE ACTIVITY SUMMARY — '+period+'\n'+d+'\n\n'
@@ -1448,7 +1618,7 @@ function renderBreakdown(data) {
 }
 
 // ── OVERNIGHT STATE ─────────────────────────────────────
-var overnights = JSON.parse(localStorage.getItem('fpfd_overnights_v1') || '[]');
+var overnights = sanitizeOvernights(JSON.parse(localStorage.getItem('fpfd_overnights_v1') || '[]'));
 var selOvCall = null;
 
 function saveOvernights() { localStorage.setItem('fpfd_overnights_v1', JSON.stringify(overnights)); }
@@ -1544,7 +1714,7 @@ function calcOvHours(o) {
 }
 
 function renderOvernights() {
-  var mo = activeMonth==='all' ? overnights : overnights.filter(function(o){return o.date.startsWith(activeMonth);});
+  var mo = activeMonth==='all' ? overnights : overnights.filter(function(o){var d=safeDate(o.date);return d && d.startsWith(activeMonth);});
   var total     = mo.length;
   var withCalls = mo.filter(function(o){return o.hadCalls;}).length;
   var hrs       = mo.reduce(function(acc,o){return acc + calcOvHours(o);}, 0);
@@ -1840,7 +2010,7 @@ function exportPDF() {
   var typeRows=Object.entries(typeCounts).sort(function(a,b){return b[1]-a[1];});
 
   // Overnights
-  var ovMo = activeMonth==='all' ? overnights : overnights.filter(function(o){return o.date.startsWith(activeMonth);});
+  var ovMo = activeMonth==='all' ? overnights : overnights.filter(function(o){var d=safeDate(o.date);return d && d.startsWith(activeMonth);});
   var ovHrs = Math.round(ovMo.reduce(function(acc,o){return acc+calcOvHours(o);},0));
 
   // Bar helper
@@ -1974,6 +2144,100 @@ function exportPDF() {
   win.document.close();
   setTimeout(function(){ win.print(); }, 400);
 }
+
+// ── CALL DETAIL MODAL ────────────────────────────────────
+var modalCallId = null;
+
+function openCallModal(id) {
+  var call = calls.find(function(c){return c.id===id;});
+  if (!call) return;
+  modalCallId = id;
+
+  // Call type + datetime
+  document.getElementById('modalCallType').textContent = call.callType;
+  var dt = new Date(call.datetime);
+  document.getElementById('modalDatetime').textContent =
+    dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})
+    +' · '+ dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+
+  // Dispatch text — show full notes (which contains the raw SMS)
+  var dispEl = document.getElementById('modalDispatch');
+  dispEl.textContent = call.notes || '—';
+
+  // Location
+  var locEl = document.getElementById('modalLocation');
+  locEl.textContent = call.inTown ? '🏠 In Town' : '✈️ Out of Town';
+  locEl.style.color  = call.inTown ? 'var(--blue)' : 'var(--muted)';
+
+  // Required
+  var reqEl = document.getElementById('modalRequired');
+  reqEl.textContent = call.required ? '✅ Yes' : '🔵 No';
+  reqEl.style.color  = call.required ? 'var(--green)' : 'var(--blue)';
+
+  // Responded
+  var respEl = document.getElementById('modalResponded');
+  if (!call.required) {
+    respEl.textContent = '— N/A';
+    respEl.style.color = 'var(--muted)';
+  } else if (call.responded) {
+    respEl.textContent = '✅ Yes';
+    respEl.style.color = 'var(--green)';
+  } else if (call.inTown) {
+    respEl.textContent = '❌ Missed';
+    respEl.style.color = 'var(--amber)';
+  } else {
+    respEl.textContent = '— Out of Town';
+    respEl.style.color = 'var(--muted)';
+  }
+
+  // Reason
+  var reasonWrap = document.getElementById('modalReasonWrap');
+  var reasonEl   = document.getElementById('modalReason');
+  if (call.reason && !call.responded) {
+    reasonWrap.style.display = 'block';
+    reasonEl.textContent = call.reason;
+    reasonEl.style.color = 'var(--amber)';
+  } else {
+    reasonWrap.style.display = 'none';
+  }
+
+  // Notes (separate from dispatch text if different)
+  var notesWrap = document.getElementById('modalNotesWrap');
+  notesWrap.style.display = 'none'; // notes shown in dispatch already
+
+  // Incident number — try to extract from notes (YYYY-NNNNNN pattern)
+  var incidentEl = document.getElementById('modalIncident');
+  var incidentMatch = (call.notes||'').match(/\d{4}-\d{6}/);
+  incidentEl.textContent = incidentMatch ? incidentMatch[0] : '—';
+
+  // Delete button
+  document.getElementById('modalDeleteBtn').onclick = function() {
+    if (confirm('Delete this call?')) {
+      closeModalBtn();
+      deleteCall(id);
+    }
+  };
+
+  // Show modal
+  var modal = document.getElementById('callModal');
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('callModal')) closeModalBtn();
+}
+
+function closeModalBtn() {
+  document.getElementById('callModal').style.display = 'none';
+  document.body.style.overflow = '';
+  modalCallId = null;
+}
+
+// Close on back button / escape key
+document.addEventListener('keydown', function(e){
+  if (e.key==='Escape') closeModalBtn();
+});
 
 function toggleSettings() {
   var p = document.getElementById('settingsPanel');
